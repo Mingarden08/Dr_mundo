@@ -5,7 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const memberRoutes = require('./routes/memberRoutes');
-const roomRoutes = require('./routes/roomRoutes');
+const gmaeRoutes = require('./routes/gameRoutes');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./utils/swagger');
 
@@ -18,7 +18,7 @@ app.use(morgan('dev'));
 
 // 라우트 등록
 app.use(memberRoutes);
-app.use(roomRoutes);
+app.use(gmaeRoutes);
 
 // Swagger 문서 경로 설정
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

@@ -2,5 +2,11 @@
 NP project 
 
 npm init -y
-npm install express ws
-npm install express mysql2 jsonwebtoken bcrypt dotenv
+npm install cors
+npm install morgan
+npm install sequelize
+npm install swagger-jsdoc swagger-ui-express
+npm install --save-dev nodemon
+
+실행
+Dr_mundo\back> node src/index.js

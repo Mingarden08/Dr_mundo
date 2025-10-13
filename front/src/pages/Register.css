@@ -1,0 +1,77 @@
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Thin.woff') format('woff');
+    font-weight: 100;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'PartialSans';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2307-1@1.1/PartialSansKR-Regular.woff2') format('woff2');
+    font-weight: normal;
+    font-display: swap;
+}
+
+html, body {
+    height: 100%;
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+  }
+
+body {
+    background: linear-gradient(to bottom, #B5B1B1, #333333);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    font-family: 'Pretendard';
+    font-size: 30px;
+}
+
+h2 {
+    margin-bottom: 50px;
+    background: linear-gradient(to right, #800080, #4B0D4B);
+    color: transparent;
+    -webkit-background-clip: text;
+}
+
+div {
+    background-color: white;
+    width: 500px;
+    height: 600px;
+    border-radius: 20px;
+    margin-bottom: 50px;
+    
+}
+
+.input {
+    border: none;
+    width: 400px;
+    height: 60px;
+    border-radius: 10px;
+    margin: 4%;
+    font-size: 15px;
+    margin-left: auto;
+    transform: translateY(-2px);
+    box-shadow: 0px 10px 15px rgba(27, 39, 63, 0.4);
+}
+
+.button {
+    justify-content: center;
+    display: flex;
+    align-items:center;
+    border: none;
+    width: 408px;
+    height: 60px;
+    border-radius: 10px;
+    font-size: 30px;
+    font-weight: 780;
+    background: linear-gradient(to right, #800080, #4B0D4B);
+    margin-top: 50px;
+    box-shadow: 0px 15px 20px rgba(27, 39, 63, 0.4);
+    color: white;
+    transform: translateY(-3px);
+}

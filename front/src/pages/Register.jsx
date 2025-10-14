@@ -24,8 +24,8 @@ function Register() {
     };
 
     return (
-        <div>
-            <div style={{ maxWidth: "400px", margin: "50px auto", textAlign: "center" }}>
+        <div className="register-container">
+            <div className="register-box">
                 <h2>회원가입</h2>
                 <form onSubmit={handleSubmit}>
                     <input
@@ -49,14 +49,12 @@ function Register() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
-                    <button
-                        className="button"
-                        type="submit"
-                    >
-                        <p>SIGN UP</p>
+                    <button className="button" type="submit">
+                        SIGN UP
                     </button>
+                    
+            <Link to="/Login" style={{ textDecoration: "none", fontSize: 20, margin: 20}}>Do you have already account?</Link>
                 </form>
-                
             </div>
         </div>
     );

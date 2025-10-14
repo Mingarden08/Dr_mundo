@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import "./Login.css";
+import { Link, useNavigate } from "react-router-dom";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -21,30 +22,30 @@ function Login() {
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "50px auto", textAlign: "center" }}>
-      <h2>로그인</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          className="input"
-          type="email"
-          placeholder="E-mail"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          className="input"
-          type="password"
-          placeholder="Password"
-          value={passwd}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <button
-          className="button2"
-          type="submit"
-        >
-          로그인
-        </button>
-      </form>
+    <div className="login-container">
+      <div className="login-box">
+        <h2>로그인</h2>
+        <form onSubmit={handleSubmit}>
+          <input
+            className="input"
+            type="email"
+            placeholder="E-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            className="input"
+            type="password"
+            placeholder="Password"
+            value={passwd}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button className="button2" type="submit">
+            SIGN IN
+          </button>
+        </form>
+        <Link to="/Register" style={{ textDecoration: "none", fontSize: 20, margin: 20}}>Don't have an account?</Link>
+      </div>
     </div>
   );
 }

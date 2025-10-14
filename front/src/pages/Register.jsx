@@ -4,22 +4,22 @@ import "./Register.css";
 import { Link, useNavigate } from "react-router-dom";
 
 function Register() {
+    const [nickName, setName] = useState("");
+    const [passwd, setPassword] = useState("");
     const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [name, setName] = useState("");
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post("http://localhost:5000/api/auth/register", {
+            const res = await axios.post("http://localhost:3000/dr-mundo/member/signup", {
+                nickName,
+                passwd,
                 email,
-                name,
-                password,
             });
-            alert("회원가입 성공!");
+            alert("회원가입 성공");
             console.log(res.data);
         } catch (err) {
-            alert("회원가입 실패. 이미 존재하는 계정일 수 있습니다.");
+            alert("회원가입 실패");
         }
     };
 
@@ -30,25 +30,24 @@ function Register() {
                 <form onSubmit={handleSubmit}>
                     <input
                         className="input"
-                        type="email"
-                        placeholder="     E-mail"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                    />
-                    <input
-                        className="input"
                         type="text"
-                        placeholder="     Name"
-                        value={name}
+                        placeholder="Name"
+                        value={nickName}
                         onChange={(e) => setName(e.target.value)}
-
                     />
                     <input
                         className="input"
                         type="password"
-                        placeholder="     Password"
-                        value={password}
+                        placeholder="Password"
+                        value={passwd}
                         onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <input
+                        className="input"
+                        type="email"
+                        placeholder="E-mail"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                     />
                     <button
                         className="button"

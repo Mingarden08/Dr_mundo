@@ -1,18 +1,19 @@
 import React, { useState } from "react";
 import axios from "axios";
+import "./Login.css";
 
 function Login() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [passwd, setPassword] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("http://localhost:3000/api/auth/login", {
+      const res = await axios.post("http://localhost:3000/dr-mundo/member/login", {
         email,
-        password,
+        passwd,
       });
-      alert("로그인 성공!");
+      alert("로그인 성공");
       console.log(res.data);
     } catch (err) {
       alert("로그인 실패, 이메일 또는 비밀번호가 틀렸습니다.");
@@ -24,29 +25,22 @@ function Login() {
       <h2>로그인</h2>
       <form onSubmit={handleSubmit}>
         <input
+          className="input"
           type="email"
-          placeholder="이메일"
+          placeholder="E-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: "10px", margin: "5px 0" }}
         />
         <input
+          className="input"
           type="password"
-          placeholder="비밀번호"
-          value={password}
+          placeholder="Password"
+          value={passwd}
           onChange={(e) => setPassword(e.target.value)}
-          style={{ width: "100%", padding: "10px", margin: "5px 0" }}
         />
         <button
+          className="button2"
           type="submit"
-          style={{
-            width: "100%",
-            padding: "10px",
-            background: "#4CAF50",
-            color: "white",
-            border: "none",
-            marginTop: "10px",
-          }}
         >
           로그인
         </button>

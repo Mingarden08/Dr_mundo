@@ -75,3 +75,8 @@ div {
     color: white;
     transform: translateY(-3px);
 }
+
+.input {
+    padding-left: 25px;
+    margin-left: -15px;
+}

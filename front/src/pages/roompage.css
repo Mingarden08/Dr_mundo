@@ -1,0 +1,249 @@
+.room-container {
+    background: radial-gradient(circle, #800080, #3a0a3a);
+    min-height: 100vh;
+}
+
+.content-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background: rgba(0, 0, 0, 0.2);
+    height: 100px;
+}
+
+img {
+    max-width: 300px;
+    margin-top: 30px;
+}
+
+.logout-button {
+    padding: 15px 50px;
+    font-size: 24px;
+    font-weight: 1000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: linear-gradient(#800080 0%, #5e015e 100%);
+    color: white;
+}
+
+.logout-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(128, 0, 128, 0.5);
+}
+
+.room-list {
+    color: black;
+    font-weight: 1000;
+    font-size: 40px;
+    text-align: center;
+    background-color: #800080;
+    min-height: 600px;
+    width: 1700px;
+    margin-left: 115px;
+    margin-top: 50px;
+    padding-bottom: 30px;
+}
+
+hr {
+    background: black;
+    height: 3px;
+    border: 0;
+    margin-top: 45px;
+}
+
+p {
+    padding-top: 20px;
+}
+
+.rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 30px;
+    max-height: 480px;
+    overflow-y: auto;
+}
+
+.no-rooms {
+    grid-column: 1 / -1;
+    text-align: center;
+    font-size: 28px;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 100px 20px;
+    font-weight: 600;
+}
+
+.room-item {
+    background: linear-gradient(135deg, #a020a0, #6a0a6a);
+    border: 3px solid #ff00ff;
+    border-radius: 15px;
+    padding: 25px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3);
+}
+
+.room-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(255, 0, 255, 0.5);
+    border-color: #00ffff;
+}
+
+.room-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.room-item-header h3 {
+    font-size: 28px;
+    font-weight: 1000;
+    color: white;
+    margin: 0;
+    text-align: left;
+}
+
+.room-status-badge {
+    background: linear-gradient(#FFD700, #FFA500);
+    color: black;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 1000;
+}
+
+.room-item-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+    color: white;
+    font-weight: 600;
+}
+
+.status-text {
+    padding: 5px 15px;
+    border-radius: 10px;
+    font-weight: 800;
+}
+
+.status-text.waiting {
+    background: rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+}
+
+.status-text.playing {
+    background: rgba(255, 0, 0, 0.3);
+    color: #ff4444;
+}
+
+.room-event {
+    margin-top: 25px;
+    margin-left: 1450px;
+    display: flex;
+    gap: 15px;
+}
+
+.room-button {
+    padding: 15px 50px;
+    font-size: 24px;
+    font-weight: 1000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background: linear-gradient(#00FF00 0%, #029b02 100%);
+    color: black;
+    transition: all 0.3s;
+}
+
+.room-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 255, 0, 0.5);
+}
+
+.refresh-button {
+    padding: 15px 50px;
+    font-size: 24px;
+    font-weight: 1000;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background: linear-gradient(#0080FF 0%, #0050cc 100%);
+    color: white;
+    transition: all 0.3s;
+}
+
+.refresh-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 128, 255, 0.5);
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    min-width: 400px;
+    max-width: 500px;
+}
+
+.modal-content h2 {
+    color: black;
+    margin-bottom: 20px;
+    font-size: 32px;
+}
+
+.room-name-input {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    border: 2px solid #800080;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.create-button {
+    padding: 12px 30px;
+    font-size: 20px;
+    font-weight: 800;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background: linear-gradient(#00FF00 0%, #029b02 100%);
+    color: black;
+}
+
+.cancel-button {
+    padding: 12px 30px;
+    font-size: 20px;
+    font-weight: 800;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    background: linear-gradient(#FF4500 0%, #cc3700 100%);
+    color: white;
+}

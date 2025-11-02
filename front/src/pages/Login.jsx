@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 function Login() {
   const [email, setEmail] = useState("");
   const [passwd, setPassword] = useState("");
+  const navigate = useNavigate(); 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -14,8 +15,13 @@ function Login() {
         email,
         passwd,
       });
-      alert("로그인 성공");
-      console.log(res.data);
+      
+      console.log(res.data); // 데이터 받아오기
+      
+      localStorage.setItem("user", JSON.stringify(res.data)); // 사용자 정보 저장하깅
+      
+      navigate("/roompage");
+      
     } catch (err) {
       alert("로그인 실패, 이메일 또는 비밀번호가 틀렸습니다.");
     }
@@ -44,7 +50,9 @@ function Login() {
             SIGN IN
           </button>
         </form>
-        <Link to="/Register" style={{ textDecoration: "none", fontSize: 20, margin: 20}}>Don't have an account?</Link>
+        <Link to="/Register" style={{ textDecoration: "none", fontSize: 20, margin: 20}}>
+          Don't have an account?
+        </Link>
       </div>
     </div>
   );

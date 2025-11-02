@@ -7,6 +7,7 @@ function Register() {
     const [nickName, setName] = useState("");
     const [passwd, setPassword] = useState("");
     const [email, setEmail] = useState("");
+    const navigate = useNavigate(); 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -16,8 +17,9 @@ function Register() {
                 passwd,
                 email,
             });
-            alert("회원가입 성공");
+            navigate("/Login", { state: { message: "회원가입 성공! 로그인해주세요." } });
             console.log(res.data);
+            
         } catch (err) {
             alert("회원가입 실패");
         }

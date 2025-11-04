@@ -12,9 +12,15 @@ const swaggerSpec = require('./utils/swagger');
 const app = express();
 
 // 기본 미들웨어
-app.use(cors());
+// CORS 설정
+app.use(cors({
+    origin: ['https://dr-mundo.onrender.com'], // 허용할 도메인
+    methods: ['GET','POST','PUT','DELETE'],
+    credentials: true // 쿠키 사용 시 필요
+}));
 app.use(express.json());
 app.use(morgan('dev'));
+
 
 // 라우트 등록
 app.use(memberRoutes);

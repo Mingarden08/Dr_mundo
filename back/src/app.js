@@ -3,6 +3,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const morgan = require('morgan');
 const memberRoutes = require('./routes/memberRoutes');
 const gmaeRoutes = require('./routes/gameRoutes');
@@ -10,6 +11,8 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./utils/swagger');
 
 const app = express();
+
+app.use(express.static(path.join(__dirname, 'public'))); // public 폴더 서빙
 
 // 기본 미들웨어
 // CORS 설정

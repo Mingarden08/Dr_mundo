@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dr. Mundo WebSocket Test</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            background: #f0f0f0;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const ws = new WebSocket('wss://dr-mundo.onrender.com'); // Render 배포 도메인
+        let playerId;
+        const players = {}; // { playerId: {x, y, color} }
+        const projectiles = [];
+
+        ws.onopen = () => {
+            console.log('✅ WebSocket 연결');
+            ws.send(JSON.stringify({ event: 'join', roomId: 1 }));
+        };
+
+        ws.onmessage = (msg) => {
+            const data = JSON.parse(msg.data);
+
+            switch (data.event) {
+                case 'connected':
+                    playerId = data.playerId;
+                    players[playerId] = { x: 100, y: 100, color: 'blue' };
+                    break;
+
+                case 'move':
+                    if (!players[data.playerId]) {
+                        players[data.playerId] = { x: data.x, y: data.y, color: 'red' };
+                    } else {
+                        players[data.playerId].x = data.x;
+                        players[data.playerId].y = data.y;
+                    }
+                    break;
+
+                case 'attack':
+                    // 투사체 생성
+                    projectiles.push({ x: data.x, y: data.y, dx: 5, dy: 0, color: 'orange' });
+                    break;
+
+                case 'leave':
+                    delete players[data.playerId];
+                    break;
+            }
+        };
+
+        // 마우스 클릭으로 이동
+        canvas.addEventListener('click', (e) => {
+            const x = e.clientX;
+            const y = e.clientY;
+            players[playerId].x = x;
+            players[playerId].y = y;
+            ws.send(JSON.stringify({ event: 'move', x, y }));
+        });
+
+        // 키보드 q로 공격
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'q') {
+                const x = players[playerId].x;
+                const y = players[playerId].y;
+                projectiles.push({ x, y, dx: 5, dy: 0, color: 'orange' });
+                ws.send(JSON.stringify({ event: 'attack', x, y, damage: 50 }));
+            }
+        });
+
+        // 게임 루프
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 플레이어 그리기
+            for (let id in players) {
+                const p = players[id];
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 투사체 그리기
+            projectiles.forEach((proj, index) => {
+                proj.x += proj.dx;
+                proj.y += proj.dy;
+                ctx.fillStyle = proj.color;
+                ctx.beginPath();
+                ctx.arc(proj.x, proj.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 화면 밖으로 나가면 제거
+                if (proj.x > canvas.width || proj.x < 0 || proj.y > canvas.height || proj.y < 0) {
+                    projectiles.splice(index, 1);
+                }
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+
+</html>

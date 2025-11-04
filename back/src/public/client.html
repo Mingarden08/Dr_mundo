@@ -1,122 +1,636 @@
-<!DOCTYPE html>
-<html lang="en">
 
+<!DOCTYPE html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Dr. Mundo WebSocket Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>멀티플레이어 게임</title>
     <style>
-        body {
+        * {
             margin: 0;
-            overflow: hidden;
+            padding: 0;
+            box-sizing: border-box;
         }
-
-        canvas {
-            background: #f0f0f0;
+        body {
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
             display: block;
+            background: #16213e;
+            cursor: crosshair;
+        }
+        #ui {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 250px;
+        }
+        .stat-bar {
+            margin: 5px 0;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .stat-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .hp-bar { background: #e74c3c; }
+        .cooldown-bar { background: #3498db; }
+        .stat-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+        #roomSection {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .skill-info {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .player-label {
+            color: white;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px black;
+            font-weight: bold;
+        }
+        #controls {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #555;
         }
     </style>
 </head>
-
 <body>
     <canvas id="gameCanvas"></canvas>
+    
+    <div id="roomSection">
+        <h2>게임 방 입장</h2>
+        <input type="text" id="roomIdInput" placeholder="방 ID 입력 (예: room1)">
+        <br>
+        <button onclick="joinRoom()">입장하기</button>
+    </div>
+
+    <div id="ui" style="display: none;">
+        <div><strong>플레이어 ID:</strong> <span id="playerId">-</span></div>
+        <div><strong>방 ID:</strong> <span id="currentRoom">-</span></div>
+        
+        <div style="margin-top: 10px;">
+            <div>HP: <span id="hpText">705/705</span></div>
+            <div class="stat-bar">
+                <div id="hpBar" class="stat-fill hp-bar" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 10px;">
+            <div>이동 속도: <span id="speedText">355</span></div>
+        </div>
+
+        <div id="controls">
+            <div class="skill-info">
+                <strong>조작법:</strong><br>
+                - 오른쪽 클릭: 이동<br>
+                - Q: 투사체 발사 (좌클릭 방향)<br>
+                - E: 유체화 (10초)<br>
+                - F: 점멸 (순간이동)
+            </div>
+        </div>
+
+        <div style="margin-top: 10px;">
+            <div>Q 쿨타임: <span id="qCooldown">0.0</span>s</div>
+            <div class="stat-bar">
+                <div id="qBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 5px;">
+            <div>E 쿨타임: <span id="eCooldown">0.0</span>s</div>
+            <div class="stat-bar">
+                <div id="eBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 5px;">
+            <div>F 쿨타임: <span id="fCooldown">0.0</span>s</div>
+            <div class="stat-bar">
+                <div id="fBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top: 15px;">
+            <button onclick="leaveRoom()">방 나가기</button>
+        </div>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        const ws = new WebSocket('wss://dr-mundo.onrender.com'); // Render 배포 도메인
-        let playerId;
-        const players = {}; // { playerId: {x, y, color} }
-        const projectiles = [];
+        let ws = null;
+        let myPlayerId = null;
+        let myPlayer = null;
+        let players = new Map();
+        let projectiles = [];
+        let GAME_CONSTANTS = null;
 
-        ws.onopen = () => {
-            console.log('✅ WebSocket 연결');
-            ws.send(JSON.stringify({ event: 'join', roomId: 1 }));
+        // 마우스 위치
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // 쿨타임 관리
+        let cooldowns = {
+            q: 0,
+            e: 0,
+            f: 0
         };
 
-        ws.onmessage = (msg) => {
-            const data = JSON.parse(msg.data);
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:3000'); // 서버 주소 수정 필요
 
-            switch (data.event) {
+            ws.onopen = () => {
+                console.log('웹소켓 연결됨');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            };
+
+            ws.onclose = () => {
+                console.log('웹소켓 연결 끊김');
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (error) => {
+                console.error('웹소켓 에러:', error);
+            };
+        }
+
+        function handleServerMessage(data) {
+            switch(data.event) {
                 case 'connected':
-                    playerId = data.playerId;
-                    players[playerId] = { x: 100, y: 100, color: 'blue' };
+                    myPlayerId = data.playerId;
+                    document.getElementById('playerId').textContent = myPlayerId;
                     break;
 
-                case 'move':
-                    if (!players[data.playerId]) {
-                        players[data.playerId] = { x: data.x, y: data.y, color: 'red' };
-                    } else {
-                        players[data.playerId].x = data.x;
-                        players[data.playerId].y = data.y;
+                case 'joined':
+                    GAME_CONSTANTS = data.constants;
+                    myPlayer = {
+                        ...data.playerState,
+                        targetX: data.playerState.x,
+                        targetY: data.playerState.y,
+                        displayX: canvas.width / 2,
+                        displayY: canvas.height / 2
+                    };
+                    
+                    // 기존 플레이어들 추가
+                    data.existingPlayers.forEach(p => {
+                        players.set(p.playerId, {
+                            ...p,
+                            targetX: p.x,
+                            targetY: p.y,
+                            displayX: p.x,
+                            displayY: p.y
+                        });
+                    });
+
+                    document.getElementById('currentRoom').textContent = document.getElementById('roomIdInput').value;
+                    document.getElementById('roomSection').style.display = 'none';
+                    document.getElementById('ui').style.display = 'block';
+                    updateUI();
+                    break;
+
+                case 'playerJoined':
+                    if (data.playerId !== myPlayerId) {
+                        players.set(data.playerId, {
+                            playerId: data.playerId,
+                            x: data.x,
+                            y: data.y,
+                            targetX: data.x,
+                            targetY: data.y,
+                            displayX: data.x,
+                            displayY: data.y,
+                            hp: data.hp,
+                            maxHp: data.maxHp
+                        });
                     }
                     break;
 
-                case 'attack':
+                case 'playerLeft':
+                    players.delete(data.playerId);
+                    break;
+
+                case 'playerMove':
+                    if (data.playerId !== myPlayerId) {
+                        const player = players.get(data.playerId);
+                        if (player) {
+                            player.targetX = data.toX;
+                            player.targetY = data.toY;
+                            player.moveSpeed = data.moveSpeed;
+                        }
+                    }
+                    break;
+
+                case 'qSkillCast':
                     // 투사체 생성
-                    projectiles.push({ x: data.x, y: data.y, dx: 5, dy: 0, color: 'orange' });
+                    const shooter = data.playerId === myPlayerId ? myPlayer : players.get(data.playerId);
+                    if (shooter) {
+                        const angle = Math.atan2(data.y - data.fromY, data.x - data.fromX);
+                        projectiles.push({
+                            x: shooter.displayX,
+                            y: shooter.displayY,
+                            targetX: data.x,
+                            targetY: data.y,
+                            angle: angle,
+                            speed: 800,
+                            ownerId: data.playerId,
+                            damage: 0,
+                            createdAt: Date.now()
+                        });
+                    }
                     break;
 
-                case 'leave':
-                    delete players[data.playerId];
+                case 'qSkillConfirmed':
+                    if (data.success) {
+                        myPlayer.hp = data.hp;
+                        cooldowns.q = data.cooldownEnd;
+                        updateUI();
+                    }
+                    break;
+
+                case 'qSkillHit':
+                    if (data.targetId === myPlayerId) {
+                        myPlayer.hp = data.targetHp;
+                        updateUI();
+                    } else {
+                        const target = players.get(data.targetId);
+                        if (target) {
+                            target.hp = data.targetHp;
+                        }
+                    }
+                    
+                    // 투사체 제거
+                    projectiles = projectiles.filter(p => p.ownerId !== data.attackerId || Date.now() - p.createdAt > 100);
+                    break;
+
+                case 'ghostActivated':
+                    if (data.playerId === myPlayerId) {
+                        // 유체화 효과
+                    } else {
+                        const player = players.get(data.playerId);
+                        if (player) {
+                            player.isGhost = true;
+                        }
+                    }
+                    break;
+
+                case 'ghostConfirmed':
+                    if (data.success) {
+                        cooldowns.e = data.cooldownEnd;
+                        myPlayer.isGhost = true;
+                        setTimeout(() => {
+                            myPlayer.isGhost = false;
+                        }, GAME_CONSTANTS.GHOST_DURATION);
+                        updateUI();
+                    }
+                    break;
+
+                case 'playerFlashed':
+                    if (data.playerId !== myPlayerId) {
+                        const player = players.get(data.playerId);
+                        if (player) {
+                            player.x = data.x;
+                            player.y = data.y;
+                            player.displayX = data.x;
+                            player.displayY = data.y;
+                        }
+                    }
+                    break;
+
+                case 'flashConfirmed':
+                    if (data.success) {
+                        myPlayer.x = data.x;
+                        myPlayer.y = data.y;
+                        cooldowns.f = data.cooldownEnd;
+                        updateUI();
+                    }
+                    break;
+
+                case 'playerDied':
+                    console.log('플레이어 사망:', data.playerId);
                     break;
             }
-        };
+        }
 
-        // 마우스 클릭으로 이동
-        canvas.addEventListener('click', (e) => {
-            const x = e.clientX;
-            const y = e.clientY;
-            players[playerId].x = x;
-            players[playerId].y = y;
-            ws.send(JSON.stringify({ event: 'move', x, y }));
+        function joinRoom() {
+            const roomId = document.getElementById('roomIdInput').value.trim();
+            if (!roomId) {
+                alert('방 ID를 입력해주세요');
+                return;
+            }
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                connectWebSocket();
+                setTimeout(() => {
+                    ws.send(JSON.stringify({ event: 'join', roomId: roomId }));
+                }, 1000);
+            } else {
+                ws.send(JSON.stringify({ event: 'join', roomId: roomId }));
+            }
+        }
+
+        function leaveRoom() {
+            if (ws) {
+                ws.send(JSON.stringify({ event: 'leave' }));
+            }
+            myPlayer = null;
+            players.clear();
+            projectiles = [];
+            document.getElementById('roomSection').style.display = 'block';
+            document.getElementById('ui').style.display = 'none';
+        }
+
+        // 마우스 이벤트
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
         });
 
-        // 키보드 q로 공격
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (myPlayer && ws) {
+                const worldX = myPlayer.x + (e.clientX - myPlayer.displayX);
+                const worldY = myPlayer.y + (e.clientY - myPlayer.displayY);
+                
+                ws.send(JSON.stringify({
+                    event: 'move',
+                    x: worldX,
+                    y: worldY
+                }));
+
+                myPlayer.targetX = worldX;
+                myPlayer.targetY = worldY;
+            }
+        });
+
+        // 키보드 이벤트
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'q') {
-                const x = players[playerId].x;
-                const y = players[playerId].y;
-                projectiles.push({ x, y, dx: 5, dy: 0, color: 'orange' });
-                ws.send(JSON.stringify({ event: 'attack', x, y, damage: 50 }));
+            if (!myPlayer || !ws) return;
+
+            const now = Date.now();
+
+            if (e.key === 'q' || e.key === 'Q') {
+                if (cooldowns.q <= now) {
+                    const worldX = myPlayer.x + (mouseX - myPlayer.displayX);
+                    const worldY = myPlayer.y + (mouseY - myPlayer.displayY);
+                    
+                    ws.send(JSON.stringify({
+                        event: 'qSkill',
+                        x: worldX,
+                        y: worldY
+                    }));
+                }
+            } else if (e.key === 'e' || e.key === 'E') {
+                if (cooldowns.e <= now) {
+                    ws.send(JSON.stringify({ event: 'ghost' }));
+                }
+            } else if (e.key === 'f' || e.key === 'F') {
+                if (cooldowns.f <= now) {
+                    const worldX = myPlayer.x + (mouseX - myPlayer.displayX);
+                    const worldY = myPlayer.y + (mouseY - myPlayer.displayY);
+                    
+                    ws.send(JSON.stringify({
+                        event: 'flash',
+                        x: worldX,
+                        y: worldY
+                    }));
+
+                    myPlayer.targetX = worldX;
+                    myPlayer.targetY = worldY;
+                    myPlayer.x = worldX;
+                    myPlayer.y = worldY;
+                }
             }
         });
 
-        // 게임 루프
-        function gameLoop() {
+        function updateUI() {
+            if (!myPlayer || !GAME_CONSTANTS) return;
+
+            const hpPercent = (myPlayer.hp / myPlayer.maxHp * 100).toFixed(0);
+            document.getElementById('hpText').textContent = `${Math.floor(myPlayer.hp)}/${myPlayer.maxHp}`;
+            document.getElementById('hpBar').style.width = hpPercent + '%';
+
+            const speed = myPlayer.isGhost ? 
+                Math.floor(GAME_CONSTANTS.BASE_MOVE_SPEED * (1 + GAME_CONSTANTS.GHOST_SPEED_BONUS)) : 
+                GAME_CONSTANTS.BASE_MOVE_SPEED;
+            document.getElementById('speedText').textContent = speed;
+
+            const now = Date.now();
+            
+            const qRemaining = Math.max(0, (cooldowns.q - now) / 1000);
+            document.getElementById('qCooldown').textContent = qRemaining.toFixed(1);
+            document.getElementById('qBar').style.width = (qRemaining / (GAME_CONSTANTS.Q_SKILL.COOLDOWN / 1000) * 100) + '%';
+
+            const eRemaining = Math.max(0, (cooldowns.e - now) / 1000);
+            document.getElementById('eCooldown').textContent = eRemaining.toFixed(1);
+            document.getElementById('eBar').style.width = (eRemaining / 15 * 100) + '%';
+
+            const fRemaining = Math.max(0, (cooldowns.f - now) / 1000);
+            document.getElementById('fCooldown').textContent = fRemaining.toFixed(1);
+            document.getElementById('fBar').style.width = (fRemaining / 5 * 100) + '%';
+        }
+
+        function gameLoop(timestamp) {
+            const deltaTime = 16; // ~60fps
+            
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // 플레이어 그리기
-            for (let id in players) {
-                const p = players[id];
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 20, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            if (myPlayer) {
+                // 내 캐릭터 이동
+                const dx = myPlayer.targetX - myPlayer.x;
+                const dy = myPlayer.targetY - myPlayer.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
 
-            // 투사체 그리기
-            projectiles.forEach((proj, index) => {
-                proj.x += proj.dx;
-                proj.y += proj.dy;
-                ctx.fillStyle = proj.color;
-                ctx.beginPath();
-                ctx.arc(proj.x, proj.y, 5, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 화면 밖으로 나가면 제거
-                if (proj.x > canvas.width || proj.x < 0 || proj.y > canvas.height || proj.y < 0) {
-                    projectiles.splice(index, 1);
+                if (distance > 1) {
+                    const moveSpeed = myPlayer.isGhost ? 
+                        GAME_CONSTANTS.BASE_MOVE_SPEED * (1 + GAME_CONSTANTS.GHOST_SPEED_BONUS) : 
+                        GAME_CONSTANTS.BASE_MOVE_SPEED;
+                    
+                    const moveDistance = moveSpeed * deltaTime / 1000;
+                    const ratio = Math.min(moveDistance / distance, 1);
+                    myPlayer.x += dx * ratio;
+                    myPlayer.y += dy * ratio;
                 }
-            });
+
+                // 화면 중앙에 내 캐릭터 고정
+                myPlayer.displayX = canvas.width / 2;
+                myPlayer.displayY = canvas.height / 2;
+
+                // 카메라 오프셋 계산
+                const offsetX = myPlayer.displayX - myPlayer.x;
+                const offsetY = myPlayer.displayY - myPlayer.y;
+
+                // 다른 플레이어들 이동 및 그리기
+                players.forEach((player) => {
+                    const pdx = player.targetX - player.x;
+                    const pdy = player.targetY - player.y;
+                    const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+
+                    if (pdist > 1) {
+                        const pmoveSpeed = player.moveSpeed || GAME_CONSTANTS.BASE_MOVE_SPEED;
+                        const pmoveDistance = pmoveSpeed * deltaTime / 1000;
+                        const pratio = Math.min(pmoveDistance / pdist, 1);
+                        player.x += pdx * pratio;
+                        player.y += pdy * pratio;
+                    }
+
+                    player.displayX = player.x + offsetX;
+                    player.displayY = player.y + offsetY;
+
+                    drawPlayer(player.displayX, player.displayY, player, '#3498db');
+                });
+
+                // 투사체 업데이트 및 그리기
+                projectiles = projectiles.filter(proj => {
+                    proj.x += Math.cos(proj.angle) * proj.speed * deltaTime / 1000;
+                    proj.y += Math.sin(proj.angle) * proj.speed * deltaTime / 1000;
+
+                    const projDisplayX = proj.x + offsetX;
+                    const projDisplayY = proj.y + offsetY;
+
+                    // 투사체 그리기
+                    ctx.beginPath();
+                    ctx.arc(projDisplayX, projDisplayY, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = proj.ownerId === myPlayerId ? '#e74c3c' : '#e67e22';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // 충돌 검사
+                    if (proj.ownerId === myPlayerId) {
+                        players.forEach((player, playerId) => {
+                            const dx = proj.x - player.x;
+                            const dy = proj.y - player.y;
+                            if (Math.sqrt(dx * dx + dy * dy) < 30) {
+                                ws.send(JSON.stringify({
+                                    event: 'qSkillHit',
+                                    targetPlayerId: playerId
+                                }));
+                                proj.hit = true;
+                            }
+                        });
+                    } else {
+                        const dx = proj.x - myPlayer.x;
+                        const dy = proj.y - myPlayer.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < 30) {
+                            // 맞음!
+                        }
+                    }
+
+                    // 5초 후 제거
+                    return Date.now() - proj.createdAt < 5000 && !proj.hit;
+                });
+
+                // 내 캐릭터 그리기
+                drawPlayer(myPlayer.displayX, myPlayer.displayY, myPlayer, '#2ecc71', true);
+
+                // 마우스 커서 방향 표시
+                ctx.beginPath();
+                ctx.moveTo(myPlayer.displayX, myPlayer.displayY);
+                ctx.lineTo(mouseX, mouseY);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                updateUI();
+            }
 
             requestAnimationFrame(gameLoop);
         }
 
-        gameLoop();
+        function drawPlayer(x, y, player, color, isMe = false) {
+            // 캐릭터 원
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.fillStyle = player.isGhost ? 'rgba(52, 152, 219, 0.5)' : color;
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // HP 바
+            const hpBarWidth = 40;
+            const hpBarHeight = 5;
+            const hpPercent = player.hp / player.maxHp;
+
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x - hpBarWidth/2, y - 35, hpBarWidth, hpBarHeight);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(x - hpBarWidth/2, y - 35, hpBarWidth * hpPercent, hpBarHeight);
+
+            // 플레이어 ID
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(isMe ? '나' : player.playerId.slice(0, 8), x, y - 40);
+        }
+
+        // 초기화
+        connectWebSocket();
+        requestAnimationFrame(gameLoop);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
     </script>
 </body>
-
 </html>

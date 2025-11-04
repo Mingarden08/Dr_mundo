@@ -3,371 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>멀티플레이어 게임</title>
+    <title>Dr. Mundo Game Test</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        
         body {
-            overflow: hidden;
-            background: #1a1a2e;
             font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
         }
-        #gameCanvas {
-            display: block;
+        
+        #lobby {
             background: #16213e;
-            cursor: crosshair;
-        }
-        #ui {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-size: 14px;
-            background: rgba(0,0,0,0.7);
-            padding: 15px;
-            border-radius: 8px;
-            min-width: 250px;
-        }
-        .stat-bar {
-            margin: 5px 0;
-            height: 20px;
-            background: #333;
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-        .stat-fill {
-            height: 100%;
-            transition: width 0.3s;
-        }
-        .hp-bar { background: #e74c3c; }
-        .cooldown-bar { background: #3498db; }
-        .stat-text {
-            position: absolute;
-            width: 100%;
-            text-align: center;
-            line-height: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 2px black;
-        }
-        #roomSection {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.9);
             padding: 30px;
             border-radius: 10px;
-            color: white;
             text-align: center;
+            max-width: 400px;
+            width: 100%;
         }
-        input {
+        
+        #lobby h1 {
+            color: #e94560;
+            margin-bottom: 20px;
+        }
+        
+        #lobby input {
+            width: 100%;
             padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #0f3460;
+            border-radius: 5px;
+            background: #0f3460;
+            color: #eee;
+            font-size: 16px;
+        }
+        
+        #lobby button {
+            width: 100%;
+            padding: 12px;
             margin: 10px 0;
             border: none;
             border-radius: 5px;
-            width: 200px;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            border: none;
-            border-radius: 5px;
-            background: #3498db;
+            background: #e94560;
             color: white;
+            font-size: 16px;
             cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        #lobby button:hover {
+            background: #c93550;
+        }
+        
+        #gameContainer {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+        
+        #info {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .player-info {
+            flex: 1;
+            padding: 10px;
+        }
+        
+        .player-info h3 {
+            color: #e94560;
+            margin-bottom: 5px;
+        }
+        
+        .hp-bar {
+            background: #0f3460;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        
+        .hp-fill {
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            height: 100%;
+            transition: width 0.3s;
+        }
+        
+        .cooldowns {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .cooldown {
+            background: #0f3460;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .cooldown.ready {
+            background: #27ae60;
+        }
+        
+        #canvas {
+            border: 3px solid #e94560;
+            border-radius: 10px;
+            background: #2c3e50;
+            cursor: crosshair;
+        }
+        
+        #controls {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        #controls h3 {
+            color: #e94560;
+            margin-bottom: 10px;
+        }
+        
+        .control-item {
+            display: inline-block;
+            background: #0f3460;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
             font-size: 14px;
         }
-        button:hover {
-            background: #2980b9;
-        }
-        .skill-info {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #aaa;
-        }
-        .player-label {
-            color: white;
-            font-size: 12px;
-            text-shadow: 1px 1px 2px black;
+        
+        .key {
+            background: #e94560;
+            padding: 3px 8px;
+            border-radius: 3px;
             font-weight: bold;
         }
-        #controls {
+        
+        #log {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
             margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #555;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+        
+        .log-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #0f3460;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    
-    <div id="roomSection">
-        <h2>게임 방 입장</h2>
-        <input type="text" id="roomIdInput" placeholder="방 ID 입력 (예: room1)">
-        <br>
-        <button onclick="joinRoom()">입장하기</button>
+    <div id="lobby">
+        <h1>🎮 Dr. Mundo Game Test</h1>
+        <input type="text" id="roomIdInput" placeholder="방 ID 입력 (예: room1)" value="room1">
+        <button onclick="joinRoom()">방 참가</button>
+        <p style="margin-top: 20px; font-size: 14px; color: #aaa;">
+            같은 방 ID를 입력하면 1:1 매칭됩니다
+        </p>
     </div>
 
-    <div id="ui" style="display: none;">
-        <div><strong>플레이어 ID:</strong> <span id="playerId">-</span></div>
-        <div><strong>방 ID:</strong> <span id="currentRoom">-</span></div>
+    <div id="gameContainer">
+        <div id="info">
+            <div class="player-info">
+                <h3>나 (<span id="myId">-</span>)</h3>
+                <div class="hp-bar">
+                    <div class="hp-fill" id="myHpBar" style="width: 100%"></div>
+                </div>
+                <div id="myHp">705 / 705</div>
+                <div class="cooldowns">
+                    <div class="cooldown ready" id="coolQ">Q: Ready</div>
+                    <div class="cooldown ready" id="coolGhost">유체화: Ready</div>
+                    <div class="cooldown ready" id="coolFlash">점멸: Ready</div>
+                </div>
+            </div>
+            <div class="player-info">
+                <h3>상대 (<span id="enemyId">-</span>)</h3>
+                <div class="hp-bar">
+                    <div class="hp-fill" id="enemyHpBar" style="width: 100%"></div>
+                </div>
+                <div id="enemyHp">705 / 705</div>
+            </div>
+        </div>
         
-        <div style="margin-top: 10px;">
-            <div>HP: <span id="hpText">705/705</span></div>
-            <div class="stat-bar">
-                <div id="hpBar" class="stat-fill hp-bar" style="width: 100%;"></div>
-            </div>
-        </div>
-
-        <div style="margin-top: 10px;">
-            <div>이동 속도: <span id="speedText">355</span></div>
-        </div>
-
+        <canvas id="canvas" width="800" height="600"></canvas>
+        
         <div id="controls">
-            <div class="skill-info">
-                <strong>조작법:</strong><br>
-                - 오른쪽 클릭: 이동<br>
-                - Q: 투사체 발사 (좌클릭 방향)<br>
-                - E: 유체화 (10초)<br>
-                - F: 점멸 (순간이동)
-            </div>
+            <h3>조작법</h3>
+            <div class="control-item"><span class="key">우클릭</span> 이동</div>
+            <div class="control-item"><span class="key">Q + 좌클릭</span> 공격</div>
+            <div class="control-item"><span class="key">W</span> 유체화</div>
+            <div class="control-item"><span class="key">F</span> 점멸 (마우스 방향)</div>
         </div>
-
-        <div style="margin-top: 10px;">
-            <div>Q 쿨타임: <span id="qCooldown">0.0</span>s</div>
-            <div class="stat-bar">
-                <div id="qBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
-            </div>
-        </div>
-
-        <div style="margin-top: 5px;">
-            <div>E 쿨타임: <span id="eCooldown">0.0</span>s</div>
-            <div class="stat-bar">
-                <div id="eBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
-            </div>
-        </div>
-
-        <div style="margin-top: 5px;">
-            <div>F 쿨타임: <span id="fCooldown">0.0</span>s</div>
-            <div class="stat-bar">
-                <div id="fBar" class="stat-fill cooldown-bar" style="width: 0%;"></div>
-            </div>
-        </div>
-
-        <div style="margin-top: 15px;">
-            <button onclick="leaveRoom()">방 나가기</button>
-        </div>
+        
+        <div id="log"></div>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-
+        const SERVER_URL = 'wss://dr-mundo.onrender.com';
         let ws = null;
         let myPlayerId = null;
-        let myPlayer = null;
-        let players = new Map();
+        let myPlayer = { x: 400, y: 300, hp: 705, maxHp: 705 };
+        let enemyPlayer = { x: 400, y: 300, hp: 705, maxHp: 705, playerId: null };
         let projectiles = [];
-        let GAME_CONSTANTS = null;
-
-        // 마우스 위치
+        let keys = {};
         let mouseX = 0;
         let mouseY = 0;
-
-        // 쿨타임 관리
-        let cooldowns = {
-            q: 0,
-            e: 0,
-            f: 0
-        };
-
-        function connectWebSocket() {
-            ws = new WebSocket('wss://dr-mundo.onrender.com');
-
-            ws.onopen = () => {
-                console.log('웹소켓 연결됨');
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleServerMessage(data);
-            };
-
-            ws.onclose = () => {
-                console.log('웹소켓 연결 끊김');
-                setTimeout(connectWebSocket, 3000);
-            };
-
-            ws.onerror = (error) => {
-                console.error('웹소켓 에러:', error);
-            };
-        }
-
-        function handleServerMessage(data) {
-            switch(data.event) {
-                case 'connected':
-                    myPlayerId = data.playerId;
-                    document.getElementById('playerId').textContent = myPlayerId;
-                    break;
-
-                case 'joined':
-                    GAME_CONSTANTS = data.constants;
-                    myPlayer = {
-                        ...data.playerState,
-                        targetX: data.playerState.x,
-                        targetY: data.playerState.y,
-                        displayX: canvas.width / 2,
-                        displayY: canvas.height / 2
-                    };
-                    
-                    // 기존 플레이어들 추가
-                    data.existingPlayers.forEach(p => {
-                        players.set(p.playerId, {
-                            ...p,
-                            targetX: p.x,
-                            targetY: p.y,
-                            displayX: p.x,
-                            displayY: p.y
-                        });
-                    });
-
-                    document.getElementById('currentRoom').textContent = document.getElementById('roomIdInput').value;
-                    document.getElementById('roomSection').style.display = 'none';
-                    document.getElementById('ui').style.display = 'block';
-                    updateUI();
-                    break;
-
-                case 'playerJoined':
-                    if (data.playerId !== myPlayerId) {
-                        players.set(data.playerId, {
-                            playerId: data.playerId,
-                            x: data.x,
-                            y: data.y,
-                            targetX: data.x,
-                            targetY: data.y,
-                            displayX: data.x,
-                            displayY: data.y,
-                            hp: data.hp,
-                            maxHp: data.maxHp
-                        });
-                    }
-                    break;
-
-                case 'playerLeft':
-                    players.delete(data.playerId);
-                    break;
-
-                case 'playerMove':
-                    if (data.playerId !== myPlayerId) {
-                        const player = players.get(data.playerId);
-                        if (player) {
-                            player.targetX = data.toX;
-                            player.targetY = data.toY;
-                            player.moveSpeed = data.moveSpeed;
-                        }
-                    }
-                    break;
-
-                case 'qSkillCast':
-                    // 투사체 생성
-                    const shooter = data.playerId === myPlayerId ? myPlayer : players.get(data.playerId);
-                    if (shooter) {
-                        const angle = Math.atan2(data.y - data.fromY, data.x - data.fromX);
-                        projectiles.push({
-                            x: shooter.displayX,
-                            y: shooter.displayY,
-                            targetX: data.x,
-                            targetY: data.y,
-                            angle: angle,
-                            speed: 800,
-                            ownerId: data.playerId,
-                            damage: 0,
-                            createdAt: Date.now()
-                        });
-                    }
-                    break;
-
-                case 'qSkillConfirmed':
-                    if (data.success) {
-                        myPlayer.hp = data.hp;
-                        cooldowns.q = data.cooldownEnd;
-                        updateUI();
-                    }
-                    break;
-
-                case 'qSkillHit':
-                    if (data.targetId === myPlayerId) {
-                        myPlayer.hp = data.targetHp;
-                        updateUI();
-                    } else {
-                        const target = players.get(data.targetId);
-                        if (target) {
-                            target.hp = data.targetHp;
-                        }
-                    }
-                    
-                    // 투사체 제거
-                    projectiles = projectiles.filter(p => p.ownerId !== data.attackerId || Date.now() - p.createdAt > 100);
-                    break;
-
-                case 'ghostActivated':
-                    if (data.playerId === myPlayerId) {
-                        // 유체화 효과
-                    } else {
-                        const player = players.get(data.playerId);
-                        if (player) {
-                            player.isGhost = true;
-                        }
-                    }
-                    break;
-
-                case 'ghostConfirmed':
-                    if (data.success) {
-                        cooldowns.e = data.cooldownEnd;
-                        myPlayer.isGhost = true;
-                        setTimeout(() => {
-                            myPlayer.isGhost = false;
-                        }, GAME_CONSTANTS.GHOST_DURATION);
-                        updateUI();
-                    }
-                    break;
-
-                case 'playerFlashed':
-                    if (data.playerId !== myPlayerId) {
-                        const player = players.get(data.playerId);
-                        if (player) {
-                            player.x = data.x;
-                            player.y = data.y;
-                            player.displayX = data.x;
-                            player.displayY = data.y;
-                        }
-                    }
-                    break;
-
-                case 'flashConfirmed':
-                    if (data.success) {
-                        myPlayer.x = data.x;
-                        myPlayer.y = data.y;
-                        cooldowns.f = data.cooldownEnd;
-                        updateUI();
-                    }
-                    break;
-
-                case 'playerDied':
-                    console.log('플레이어 사망:', data.playerId);
-                    break;
+        let cooldowns = { q: 0, ghost: 0, flash: 0 };
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function addLog(message) {
+            const log = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = 'log-item';
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.insertBefore(item, log.firstChild);
+            
+            if (log.children.length > 10) {
+                log.removeChild(log.lastChild);
             }
         }
-
+        
         function joinRoom() {
             const roomId = document.getElementById('roomIdInput').value.trim();
             if (!roomId) {
@@ -375,261 +257,278 @@
                 return;
             }
             
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                connectWebSocket();
-                setTimeout(() => {
-                    ws.send(JSON.stringify({ event: 'join', roomId: roomId }));
-                }, 1000);
-            } else {
-                ws.send(JSON.stringify({ event: 'join', roomId: roomId }));
+            ws = new WebSocket(SERVER_URL);
+            
+            ws.onopen = () => {
+                addLog('서버 연결됨');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data);
+            };
+            
+            ws.onerror = (error) => {
+                addLog('연결 오류: ' + error);
+            };
+            
+            ws.onclose = () => {
+                addLog('연결 종료됨');
+            };
+        }
+        
+        function handleMessage(data) {
+            switch(data.event) {
+                case 'connected':
+                    myPlayerId = data.playerId;
+                    ws.send(JSON.stringify({ event: 'join', roomId: document.getElementById('roomIdInput').value }));
+                    break;
+                    
+                case 'joined':
+                    document.getElementById('lobby').style.display = 'none';
+                    document.getElementById('gameContainer').style.display = 'flex';
+                    document.getElementById('myId').textContent = myPlayerId.substring(0, 8);
+                    myPlayer = data.playerState;
+                    
+                    // 기존 플레이어 처리
+                    if (data.existingPlayers && data.existingPlayers.length > 0) {
+                        enemyPlayer = data.existingPlayers[0];
+                        document.getElementById('enemyId').textContent = enemyPlayer.playerId.substring(0, 8);
+                        addLog('상대방과 연결됨!');
+                    }
+                    
+                    addLog('방에 참가했습니다');
+                    requestAnimationFrame(gameLoop);
+                    break;
+                    
+                case 'playerJoined':
+                    if (data.playerId !== myPlayerId) {
+                        enemyPlayer = {
+                            playerId: data.playerId,
+                            x: data.x,
+                            y: data.y,
+                            hp: data.hp,
+                            maxHp: data.maxHp
+                        };
+                        document.getElementById('enemyId').textContent = data.playerId.substring(0, 8);
+                        addLog('상대방이 입장했습니다');
+                    }
+                    break;
+                    
+                case 'playerMove':
+                    if (data.playerId === myPlayerId) {
+                        myPlayer.x = data.toX;
+                        myPlayer.y = data.toY;
+                    } else {
+                        enemyPlayer.x = data.toX;
+                        enemyPlayer.y = data.toY;
+                    }
+                    break;
+                    
+                case 'attackCast':
+                    projectiles.push({
+                        id: data.projectileId,
+                        ownerId: data.playerId,
+                        x: data.fromX,
+                        y: data.fromY,
+                        targetX: data.x,
+                        targetY: data.y,
+                        startTime: Date.now()
+                    });
+                    addLog(data.playerId === myPlayerId ? '공격 발사!' : '상대방이 공격!');
+                    break;
+                    
+                case 'hit':
+                    if (data.targetId === myPlayerId) {
+                        myPlayer.hp = data.hp;
+                        updateHPBar('myHpBar', 'myHp', myPlayer.hp, myPlayer.maxHp);
+                        addLog(`피격! 데미지: ${Math.round(data.damage)}`);
+                    } else {
+                        enemyPlayer.hp = data.hp;
+                        updateHPBar('enemyHpBar', 'enemyHp', enemyPlayer.hp, enemyPlayer.maxHp);
+                        addLog(`적 명중! 데미지: ${Math.round(data.damage)}`);
+                    }
+                    
+                    // 투사체 제거
+                    projectiles = projectiles.filter(p => 
+                        !(p.ownerId === data.attackerId && Math.abs(p.x - data.x) < 50 && Math.abs(p.y - data.y) < 50)
+                    );
+                    break;
+                    
+                case 'ghostActivated':
+                    addLog(data.playerId === myPlayerId ? '유체화 활성화!' : '상대방이 유체화 사용');
+                    break;
+                    
+                case 'playerFlashed':
+                    if (data.playerId === myPlayerId) {
+                        myPlayer.x = data.x;
+                        myPlayer.y = data.y;
+                        addLog('점멸 사용!');
+                    } else {
+                        enemyPlayer.x = data.x;
+                        enemyPlayer.y = data.y;
+                        addLog('상대방이 점멸 사용');
+                    }
+                    break;
+                    
+                case 'coolTime':
+                    cooldowns = {
+                        q: data.attack,
+                        ghost: data.ghost,
+                        flash: data.flash
+                    };
+                    updateCooldowns();
+                    break;
+                    
+                case 'finish':
+                    const winner = data.playerId === myPlayerId ? '승리!' : '패배...';
+                    addLog(`게임 종료: ${winner}`);
+                    alert(`게임 종료! ${winner}`);
+                    break;
             }
         }
-
-        function leaveRoom() {
-            if (ws) {
-                ws.send(JSON.stringify({ event: 'leave' }));
-            }
-            myPlayer = null;
-            players.clear();
-            projectiles = [];
-            document.getElementById('roomSection').style.display = 'block';
-            document.getElementById('ui').style.display = 'none';
+        
+        function updateHPBar(barId, textId, hp, maxHp) {
+            const percent = (hp / maxHp) * 100;
+            document.getElementById(barId).style.width = percent + '%';
+            document.getElementById(textId).textContent = `${Math.round(hp)} / ${maxHp}`;
         }
-
-        // 마우스 이벤트
-        canvas.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
-
+        
+        function updateCooldowns() {
+            const qEl = document.getElementById('coolQ');
+            const ghostEl = document.getElementById('coolGhost');
+            const flashEl = document.getElementById('coolFlash');
+            
+            qEl.textContent = cooldowns.q > 0 ? `Q: ${cooldowns.q}s` : 'Q: Ready';
+            qEl.className = cooldowns.q > 0 ? 'cooldown' : 'cooldown ready';
+            
+            ghostEl.textContent = cooldowns.ghost > 0 ? `유체화: ${cooldowns.ghost}s` : '유체화: Ready';
+            ghostEl.className = cooldowns.ghost > 0 ? 'cooldown' : 'cooldown ready';
+            
+            flashEl.textContent = cooldowns.flash > 0 ? `점멸: ${cooldowns.flash}s` : '점멸: Ready';
+            flashEl.className = cooldowns.flash > 0 ? 'cooldown' : 'cooldown ready';
+        }
+        
+        // 캔버스 이벤트
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            if (myPlayer && ws) {
-                const worldX = myPlayer.x + (e.clientX - myPlayer.displayX);
-                const worldY = myPlayer.y + (e.clientY - myPlayer.displayY);
-                
-                ws.send(JSON.stringify({
-                    event: 'move',
-                    x: worldX,
-                    y: worldY
-                }));
-
-                myPlayer.targetX = worldX;
-                myPlayer.targetY = worldY;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'move', x, y }));
             }
         });
-
+        
+        canvas.addEventListener('click', (e) => {
+            if (keys['q'] || keys['Q']) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ event: 'attack', x, y }));
+                }
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+        
         // 키보드 이벤트
         document.addEventListener('keydown', (e) => {
-            if (!myPlayer || !ws) return;
-
-            const now = Date.now();
-
-            if (e.key === 'q' || e.key === 'Q') {
-                if (cooldowns.q <= now) {
-                    const worldX = myPlayer.x + (mouseX - myPlayer.displayX);
-                    const worldY = myPlayer.y + (mouseY - myPlayer.displayY);
-                    
-                    ws.send(JSON.stringify({
-                        event: 'qSkill',
-                        x: worldX,
-                        y: worldY
-                    }));
-                }
-            } else if (e.key === 'e' || e.key === 'E') {
-                if (cooldowns.e <= now) {
-                    ws.send(JSON.stringify({ event: 'ghost' }));
-                }
-            } else if (e.key === 'f' || e.key === 'F') {
-                if (cooldowns.f <= now) {
-                    const worldX = myPlayer.x + (mouseX - myPlayer.displayX);
-                    const worldY = myPlayer.y + (mouseY - myPlayer.displayY);
-                    
-                    ws.send(JSON.stringify({
-                        event: 'flash',
-                        x: worldX,
-                        y: worldY
-                    }));
-
-                    myPlayer.targetX = worldX;
-                    myPlayer.targetY = worldY;
-                    myPlayer.x = worldX;
-                    myPlayer.y = worldY;
-                }
+            keys[e.key] = true;
+            
+            if ((e.key === 'w' || e.key === 'W') && ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'ghost' }));
+            }
+            
+            if ((e.key === 'f' || e.key === 'F') && ws && ws.readyState === WebSocket.OPEN) {
+                const dx = mouseX - myPlayer.x;
+                const dy = mouseY - myPlayer.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const flashDist = 300;
+                
+                const flashX = myPlayer.x + (dx / dist) * Math.min(flashDist, dist);
+                const flashY = myPlayer.y + (dy / dist) * Math.min(flashDist, dist);
+                
+                ws.send(JSON.stringify({ event: 'flash', x: flashX, y: flashY }));
             }
         });
-
-        function updateUI() {
-            if (!myPlayer || !GAME_CONSTANTS) return;
-
-            const hpPercent = (myPlayer.hp / myPlayer.maxHp * 100).toFixed(0);
-            document.getElementById('hpText').textContent = `${Math.floor(myPlayer.hp)}/${myPlayer.maxHp}`;
-            document.getElementById('hpBar').style.width = hpPercent + '%';
-
-            const speed = myPlayer.isGhost ? 
-                Math.floor(GAME_CONSTANTS.BASE_MOVE_SPEED * (1 + GAME_CONSTANTS.GHOST_SPEED_BONUS)) : 
-                GAME_CONSTANTS.BASE_MOVE_SPEED;
-            document.getElementById('speedText').textContent = speed;
-
-            const now = Date.now();
-            
-            const qRemaining = Math.max(0, (cooldowns.q - now) / 1000);
-            document.getElementById('qCooldown').textContent = qRemaining.toFixed(1);
-            document.getElementById('qBar').style.width = (qRemaining / (GAME_CONSTANTS.Q_SKILL.COOLDOWN / 1000) * 100) + '%';
-
-            const eRemaining = Math.max(0, (cooldowns.e - now) / 1000);
-            document.getElementById('eCooldown').textContent = eRemaining.toFixed(1);
-            document.getElementById('eBar').style.width = (eRemaining / 15 * 100) + '%';
-
-            const fRemaining = Math.max(0, (cooldowns.f - now) / 1000);
-            document.getElementById('fCooldown').textContent = fRemaining.toFixed(1);
-            document.getElementById('fBar').style.width = (fRemaining / 5 * 100) + '%';
-        }
-
-        function gameLoop(timestamp) {
-            const deltaTime = 16; // ~60fps
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (myPlayer) {
-                // 내 캐릭터 이동
-                const dx = myPlayer.targetX - myPlayer.x;
-                const dy = myPlayer.targetY - myPlayer.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance > 1) {
-                    const moveSpeed = myPlayer.isGhost ? 
-                        GAME_CONSTANTS.BASE_MOVE_SPEED * (1 + GAME_CONSTANTS.GHOST_SPEED_BONUS) : 
-                        GAME_CONSTANTS.BASE_MOVE_SPEED;
-                    
-                    const moveDistance = moveSpeed * deltaTime / 1000;
-                    const ratio = Math.min(moveDistance / distance, 1);
-                    myPlayer.x += dx * ratio;
-                    myPlayer.y += dy * ratio;
-                }
-
-                // 화면 중앙에 내 캐릭터 고정
-                myPlayer.displayX = canvas.width / 2;
-                myPlayer.displayY = canvas.height / 2;
-
-                // 카메라 오프셋 계산
-                const offsetX = myPlayer.displayX - myPlayer.x;
-                const offsetY = myPlayer.displayY - myPlayer.y;
-
-                // 다른 플레이어들 이동 및 그리기
-                players.forEach((player) => {
-                    const pdx = player.targetX - player.x;
-                    const pdy = player.targetY - player.y;
-                    const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
-
-                    if (pdist > 1) {
-                        const pmoveSpeed = player.moveSpeed || GAME_CONSTANTS.BASE_MOVE_SPEED;
-                        const pmoveDistance = pmoveSpeed * deltaTime / 1000;
-                        const pratio = Math.min(pmoveDistance / pdist, 1);
-                        player.x += pdx * pratio;
-                        player.y += pdy * pratio;
-                    }
-
-                    player.displayX = player.x + offsetX;
-                    player.displayY = player.y + offsetY;
-
-                    drawPlayer(player.displayX, player.displayY, player, '#3498db');
-                });
-
-                // 투사체 업데이트 및 그리기
-                projectiles = projectiles.filter(proj => {
-                    proj.x += Math.cos(proj.angle) * proj.speed * deltaTime / 1000;
-                    proj.y += Math.sin(proj.angle) * proj.speed * deltaTime / 1000;
-
-                    const projDisplayX = proj.x + offsetX;
-                    const projDisplayY = proj.y + offsetY;
-
-                    // 투사체 그리기
-                    ctx.beginPath();
-                    ctx.arc(projDisplayX, projDisplayY, 8, 0, Math.PI * 2);
-                    ctx.fillStyle = proj.ownerId === myPlayerId ? '#e74c3c' : '#e67e22';
-                    ctx.fill();
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    // 충돌 검사
-                    if (proj.ownerId === myPlayerId) {
-                        players.forEach((player, playerId) => {
-                            const dx = proj.x - player.x;
-                            const dy = proj.y - player.y;
-                            if (Math.sqrt(dx * dx + dy * dy) < 30) {
-                                ws.send(JSON.stringify({
-                                    event: 'qSkillHit',
-                                    targetPlayerId: playerId
-                                }));
-                                proj.hit = true;
-                            }
-                        });
-                    } else {
-                        const dx = proj.x - myPlayer.x;
-                        const dy = proj.y - myPlayer.y;
-                        if (Math.sqrt(dx * dx + dy * dy) < 30) {
-                            // 맞음!
-                        }
-                    }
-
-                    // 5초 후 제거
-                    return Date.now() - proj.createdAt < 5000 && !proj.hit;
-                });
-
-                // 내 캐릭터 그리기
-                drawPlayer(myPlayer.displayX, myPlayer.displayY, myPlayer, '#2ecc71', true);
-
-                // 마우스 커서 방향 표시
-                ctx.beginPath();
-                ctx.moveTo(myPlayer.displayX, myPlayer.displayY);
-                ctx.lineTo(mouseX, mouseY);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                updateUI();
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // 주기적으로 쿨타임 확인
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ event: 'coolTime' }));
             }
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        function drawPlayer(x, y, player, color, isMe = false) {
-            // 캐릭터 원
+        }, 1000);
+        
+        // 게임 루프
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 배경 그리드
+            ctx.strokeStyle = '#34495e';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // 투사체 그리기
+            projectiles.forEach(proj => {
+                const elapsed = Date.now() - proj.startTime;
+                const speed = 1200;
+                const dist = Math.sqrt((proj.targetX - proj.x) ** 2 + (proj.targetY - proj.y) ** 2);
+                const progress = (speed * elapsed / 1000) / dist;
+                
+                proj.x += (proj.targetX - proj.x) * Math.min(progress, 1) * 0.1;
+                proj.y += (proj.targetY - proj.y) * Math.min(progress, 1) * 0.1;
+                
+                ctx.fillStyle = proj.ownerId === myPlayerId ? '#3498db' : '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // 플레이어 그리기 (나)
+            ctx.fillStyle = '#3498db';
             ctx.beginPath();
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            ctx.fillStyle = player.isGhost ? 'rgba(52, 152, 219, 0.5)' : color;
+            ctx.arc(myPlayer.x, myPlayer.y, 20, 0, Math.PI * 2);
             ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-
-            // HP 바
-            const hpBarWidth = 40;
-            const hpBarHeight = 5;
-            const hpPercent = player.hp / player.maxHp;
-
-            ctx.fillStyle = '#333';
-            ctx.fillRect(x - hpBarWidth/2, y - 35, hpBarWidth, hpBarHeight);
-            ctx.fillStyle = '#e74c3c';
-            ctx.fillRect(x - hpBarWidth/2, y - 35, hpBarWidth * hpPercent, hpBarHeight);
-
-            // 플레이어 ID
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = '#fff';
             ctx.font = '12px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(isMe ? '나' : player.playerId.slice(0, 8), x, y - 40);
+            ctx.fillText('나', myPlayer.x, myPlayer.y - 25);
+            
+            // 플레이어 그리기 (상대)
+            if (enemyPlayer.playerId) {
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(enemyPlayer.x, enemyPlayer.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.fillText('상대', enemyPlayer.x, enemyPlayer.y - 25);
+            }
+            
+            requestAnimationFrame(gameLoop);
         }
-
-        // 초기화
-        connectWebSocket();
-        requestAnimationFrame(gameLoop);
-
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        });
     </script>
 </body>
 </html>

@@ -57,7 +57,6 @@ exports.getRoomList = async () => {
 
 // 방 참가
 exports.joinRoom = async (roomId, memberId) => {
-    // 트랜잭션 시작
     const t = await sequelize.transaction();
 
     try {
@@ -111,12 +110,19 @@ exports.joinRoom = async (roomId, memberId) => {
     }
 };
 
-// 게임 결과 저장
+// 게임 결과 저장 (개선됨 - 권한 체크 추가)
 exports.saveGameResult = async (roomId, winnerId) => {
     const t = await sequelize.transaction();
 
     try {
-        // 1. 방의 참가자 확인
+        // 1. 방 조회
+        const room = await Room.findByPk(roomId, { transaction: t });
+        if (!room) {
+            await t.rollback();
+            throw new Error("방을 찾을 수 없습니다.");
+        }
+
+        // 2. 방의 참가자 확인
         const participants = await RoomParticipant.findAll({
             where: { roomId: roomId },
             transaction: t
@@ -127,25 +133,32 @@ exports.saveGameResult = async (roomId, winnerId) => {
             throw new Error("참가자가 2명이 아닙니다.");
         }
 
-        // 2. 패자 찾기
+        // 3. winnerId가 실제 참가자인지 확인
+        const isParticipant = participants.some(p => p.memberId === winnerId);
+        if (!isParticipant) {
+            await t.rollback();
+            throw new Error("방에 참가하고 있지 않습니다.");
+        }
+
+        // 4. 패자 찾기
         const loserId = participants.find(p => p.memberId !== winnerId)?.memberId;
         if (!loserId) {
             await t.rollback();
             throw new Error("패자를 찾을 수 없습니다.");
         }
 
-        // 3. 게임 결과 저장
+        // 5. 게임 결과 저장
         await GameRecord.create({
             roomId: roomId,
             winnerId: winnerId,
             loserId: loserId
         }, { transaction: t });
 
-        // 4. 승자 전적 업데이트
+        // 6. 승자 전적 업데이트
         const winner = await Member.findByPk(winnerId, { transaction: t });
         await winner.increment('totalWins', { transaction: t });
 
-        // 5. 방 상태 변경
+        // 7. 방 상태 변경
         await Room.update(
             { status: 'finished' },
             { where: { id: roomId }, transaction: t }

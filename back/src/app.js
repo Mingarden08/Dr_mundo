@@ -17,7 +17,7 @@ app.use(express.static(path.join(__dirname, 'public'))); // public 폴더 서빙
 // CORS 설정
 app.use(cors({
     origin: ['https://dr-mundo.onrender.com'], // 허용할 도메인
-    methods: ['GET','POST','PUT','DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true // 쿠키 사용 시 필요
 }));
 app.use(express.json());
@@ -27,6 +27,13 @@ app.use(morgan('dev'));
 // 라우트 등록
 app.use(memberRoutes);
 app.use(gmaeRoutes);
+
+app.use(express.static(path.join(__dirname, '../../frontend/src')));
+
+// React 라우팅 처리
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../frontend/public', 'index.html'));
+});
 
 // Swagger 문서 경로 설정
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

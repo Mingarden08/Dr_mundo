@@ -10,7 +10,7 @@ const successResp = (data) => ({
 exports.createRoom = async (req, res) => {
     try {
         const { roomName } = req.body;
-        const hostId = req.user.id; // authMiddleware에서 설정된 member_id
+        const hostId = req.user.id;
 
         if (!roomName) {
             return res.status(400).json({ 
@@ -60,7 +60,7 @@ exports.getRoomList = async (req, res) => {
 exports.joinRoom = async (req, res) => {
     try {
         const roomId = parseInt(req.params.rNo);
-        const memberId = req.user.id; // authMiddleware에서 설정된 member_id
+        const memberId = req.user.id;
 
         if (!roomId || isNaN(roomId)) {
             return res.status(400).json({ 
@@ -93,39 +93,44 @@ exports.joinRoom = async (req, res) => {
     }
 };
 
-// 게임 결과 저장
+// 게임 결과 저장 (개선됨)
 exports.saveGameResult = async (req, res) => {
     try {
         const roomId = parseInt(req.params.rNo);
-        const { winner } = req.body;
-        const memberId = req.user.id; // authMiddleware에서 설정된 member_id
+        const { winner, winnerId } = req.body;
+        const currentUserId = req.user.id;
 
-        if (!roomId || isNaN(roomId) || !winner) {
+        if (!roomId || isNaN(roomId)) {
             return res.status(400).json({ 
                 code: 400, 
-                message: "필수 값이 없습니다.", 
+                message: "방 번호가 필요합니다.", 
                 data: null 
             });
         }
 
-        // winner가 "player"이면 현재 유저가 승리
-        const winnerId = winner === "player" ? memberId : null;
+        // winnerId가 직접 제공되지 않았고 winner가 "player"인 경우
+        let actualWinnerId = winnerId;
+        if (!actualWinnerId && winner === "player") {
+            actualWinnerId = currentUserId;
+        }
 
-        if (!winnerId) {
+        if (!actualWinnerId) {
             return res.status(400).json({ 
                 code: 400, 
-                message: "승자 정보가 올바르지 않습니다.", 
+                message: "승자 정보가 필요합니다.", 
                 data: null 
             });
         }
 
-        const result = await gameService.saveGameResult(roomId, winnerId);
+        const result = await gameService.saveGameResult(roomId, actualWinnerId);
         return res.json(successResp(result));
 
     } catch (err) {
         console.error(err);
-        if (err.message === "참가자가 2명이 아닙니다." ||
-            err.message === "패자를 찾을 수 없습니다.") {
+        if (err.message === "방을 찾을 수 없습니다." ||
+            err.message === "참가자가 2명이 아닙니다." ||
+            err.message === "패자를 찾을 수 없습니다." ||
+            err.message === "방에 참가하고 있지 않습니다.") {
             return res.status(400).json({ 
                 code: 400, 
                 message: err.message, 
@@ -143,7 +148,7 @@ exports.saveGameResult = async (req, res) => {
 // 전적 보기
 exports.getGameRecord = async (req, res) => {
     try {
-        const memberId = req.user.id; // authMiddleware에서 설정된 member_id
+        const memberId = req.user.id;
         const result = await gameService.getGameRecord(memberId);
         return res.json(successResp(result));
 

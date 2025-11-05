@@ -1,375 +1,401 @@
-const express = require('express');
+const express = require("express");
+
 const router = express.Router();
-const gameCtrl = require('../controllers/gameController');
-const { authMiddleware } = require('../middlewares/auth');
+
+const gameCtrl = require("../controllers/gameController");
+
+const { authMiddleware } = require("../middlewares/auth");
+
+
 
 /**
+
  * @swagger
+
  * /dr-mundo/game/room/create:
- * post:
- * summary: 방 만들기
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - roomName
- * properties:
- * roomName:
- * type: string
- * example: "문도방"
- * responses:
- * 200:
- * description: 방 생성 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * playerCnt:
- * type: integer
- * example: 1
- * roomId:
- * type: integer
- * example: 1
+
+ *   post:
+
+ *     summary: 게임 방 생성
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     responses:
+
+ *       200:
+
+ *         description: 방 생성 성공
+
  */
-router.post('/dr-mundo/game/room/create', authMiddleware, gameCtrl.createRoom);
+
+router.post("/dr-mundo/game/room/create", authMiddleware, gameCtrl.createRoom);
+
+
 
 /**
+
  * @swagger
- * /dr-mundo/game/room/start/{rNo}:
- * post:
- * summary: 게임 시작 (HTTP 요청)
- * description: 방장이 게임을 시작할 때 DB 상태를 'playing'으로 변경하는 HTTP 요청. (웹소켓 연결 전 사용)
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: rNo
- * required: true
- * schema:
- * type: integer
- * description: 방 번호
- * responses:
- * 200:
- * description: 게임 시작 요청 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * success:
- * type: boolean
- * example: true
+
+ * /dr-mundo/game/room/list:
+
+ *   get:
+
+ *     summary: 대기 중인 방 목록 조회
+
+ *     tags: [Game]
+
+ *     responses:
+
+ *       200:
+
+ *         description: 방 목록 반환
+
+ *         content:
+
+ *           application/json:
+
+ *             schema:
+
+ *               type: object
+
+ *               properties:
+
+ *                 code:
+
+ *                   type: integer
+
+ *                 message:
+
+ *                   type: string
+
+ *                 data:
+
+ *                   type: object
+
+ *                   properties:
+
+ *                     rooms:
+
+ *                       type: array
+
+ *                       items:
+
+ *                         type: object
+
+ *                         properties:
+
+ *                           roomId:
+
+ *                             type: integer
+
+ *                             example: 3
+
+ *                           playerCnt:
+
+ *                             type: integer
+
+ *                             example: 2
+
  */
-router.post('/dr-mundo/game/room/start/:rNo', authMiddleware, gameCtrl.startGame); // ⬅️ **새로 추가된 라우트**
+
+router.get("/dr-mundo/game/room/list", gameCtrl.getRoomList);
+
+
 
 /**
+
  * @swagger
- * /dr-mundo/game/room:
- * get:
- * summary: 방 목록 보기
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * responses:
- * 200:
- * description: 방 목록 조회 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * rooms:
- * type: array
- * items:
- * type: object
- * properties:
- * playerCnt:
- * type: integer
- * example: 1
- * roomId:
- * type: integer
- * example: 1
+
+ * /dr-mundo/game/room/{rNo}/join:
+
+ *   post:
+
+ *     summary: 방 참가
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     parameters:
+
+ *       - in: path
+
+ *         name: rNo
+
+ *         required: true
+
+ *         schema:
+
+ *           type: integer
+
+ *         description: 방 번호
+
+ *     responses:
+
+ *       200:
+
+ *         description: 참가 성공
+
  */
-router.get('/dr-mundo/game/room', authMiddleware, gameCtrl.getRoomList);
+
+router.post("/dr-mundo/game/room/:rNo/join", authMiddleware, gameCtrl.joinRoom);
+
+
 
 /**
+
  * @swagger
- * /dr-mundo/game/room/join/{rNo}:
- * post:
- * summary: 방 참가
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: rNo
- * required: true
- * schema:
- * type: integer
- * description: 방 번호
- * responses:
- * 200:
- * description: 방 참가 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * success:
- * type: boolean
- * example: true
+
+ * /dr-mundo/game/room/{rNo}/start:
+
+ *   post:
+
+ *     summary: 게임 시작
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     parameters:
+
+ *       - in: path
+
+ *         name: rNo
+
+ *         required: true
+
+ *         schema:
+
+ *           type: integer
+
+ *         description: 방 번호
+
+ *     responses:
+
+ *       200:
+
+ *         description: 게임 시작 성공
+
  */
-router.post('/dr-mundo/game/room/join/:rNo', authMiddleware, gameCtrl.joinRoom);
+
+router.post("/dr-mundo/game/room/start/:rNo", authMiddleware, gameCtrl.startGame);
+
+
 
 /**
+
  * @swagger
- * /dr-mundo/game/result/{rNo}:
- * post:
- * summary: 게임 결과 저장
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: rNo
- * required: true
- * schema:
- * type: integer
- * description: 방 번호
- * requestBody:
- * required: true
- * content:
- * application/json:
- * schema:
- * type: object
- * required:
- * - winner
- * properties:
- * winner:
- * type: string
- * example: "player"
- * responses:
- * 200:
- * description: 게임 결과 저장 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * success:
- * type: boolean
- * example: true
+
+ * /dr-mundo/game/room/{rNo}/leave:
+
+ *   delete:
+
+ *     summary: 방 나가기
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     parameters:
+
+ *       - in: path
+
+ *         name: rNo
+
+ *         required: true
+
+ *         schema:
+
+ *           type: integer
+
+ *         description: 방 번호
+
+ *     responses:
+
+ *       200:
+
+ *         description: 성공적으로 방을 나감
+
  */
-router.post('/dr-mundo/game/result/:rNo', authMiddleware, gameCtrl.saveGameResult);
+
+router.delete("/dr-mundo/game/room/:rNo/leave", authMiddleware, gameCtrl.leaveRoom);
+
+
 
 /**
+
  * @swagger
+
+ * /dr-mundo/game/room/{rNo}/delete:
+
+ *   delete:
+
+ *     summary: 방 삭제 (방장 전용)
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     parameters:
+
+ *       - in: path
+
+ *         name: rNo
+
+ *         required: true
+
+ *         schema:
+
+ *           type: integer
+
+ *         description: 방 번호
+
+ *     responses:
+
+ *       200:
+
+ *         description: 방 삭제 성공
+
+ */
+
+router.delete("/dr-mundo/game/room/:rNo/delete", authMiddleware, gameCtrl.deleteRoom);
+
+
+
+/**
+
+ * @swagger
+
+ * /dr-mundo/game/{rNo}/result:
+
+ *   post:
+
+ *     summary: 게임 결과 저장
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     parameters:
+
+ *       - in: path
+
+ *         name: rNo
+
+ *         required: true
+
+ *         schema:
+
+ *           type: integer
+
+ *         description: 방 번호
+
+ *     requestBody:
+
+ *       required: true
+
+ *       content:
+
+ *         application/json:
+
+ *           schema:
+
+ *             type: object
+
+ *             properties:
+
+ *               winner:
+
+ *                 type: string
+
+ *                 example: "player"
+
+ *     responses:
+
+ *       200:
+
+ *         description: 결과 저장 성공
+
+ */
+
+router.post("/dr-mundo/game/:rNo/result", authMiddleware, gameCtrl.saveGameResult);
+
+
+
+/**
+
+ * @swagger
+
  * /dr-mundo/game/record:
- * get:
- * summary: 전적 보기
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * responses:
- * 200:
- * description: 전적 조회 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * games:
- * type: array
- * items:
- * type: object
- * properties:
- * win:
- * type: boolean
- * example: true
- * enemy:
- * type: string
- * example: "nickName"
- * rank:
- * type: integer
- * example: 1
+
+ *   get:
+
+ *     summary: 전적 조회
+
+ *     tags: [Game]
+
+ *     security:
+
+ *       - bearerAuth: []
+
+ *     responses:
+
+ *       200:
+
+ *         description: 사용자 전적 반환
+
  */
-router.get('/dr-mundo/game/record', authMiddleware, gameCtrl.getGameRecord);
+
+router.get("/dr-mundo/game/record", authMiddleware, gameCtrl.getGameRecord);
+
+
 
 /**
- * @swagger
- * /dr-mundo/game/rank:
- * get:
- * summary: 랭킹 보기
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * responses:
- * 200:
- * description: 랭킹 조회 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * ranks:
- * type: array
- * items:
- * type: object
- * properties:
- * winRate:
- * type: integer
- * example: 10
- * player:
- * type: string
- * example: "nickName"
- */
-router.get('/dr-mundo/game/rank', authMiddleware, gameCtrl.getRanking);
 
-/**
  * @swagger
- * /dr-mundo/game/room/leave/{rNo}:
- * delete:
- * summary: 방 나가기
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: rNo
- * required: true
- * schema:
- * type: integer
- * description: 방 번호
- * responses:
- * 200:
- * description: 방 나가기 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * success:
- * type: boolean
- * example: true
- */
-router.delete('/dr-mundo/game/room/leave/:rNo', authMiddleware, gameCtrl.leaveRoom);
 
-/**
- * @swagger
- * /dr-mundo/game/room/{rNo}:
- * delete:
- * summary: 방 삭제 (방장만 가능)
- * tags: [Game]
- * security:
- * - bearerAuth: []
- * parameters:
- * - in: path
- * name: rNo
- * required: true
- * schema:
- * type: integer
- * description: 방 번호
- * responses:
- * 200:
- * description: 방 삭제 성공
- * content:
- * application/json:
- * schema:
- * type: object
- * properties:
- * code:
- * type: integer
- * example: 200
- * message:
- * type: string
- * example: "요청이 성공적으로 처리되었습니다."
- * data:
- * type: object
- * properties:
- * success:
- * type: boolean
- * example: true
+ * /dr-mundo/game/ranking:
+
+ *   get:
+
+ *     summary: 전체 랭킹 조회
+
+ *     tags: [Game]
+
+ *     responses:
+
+ *       200:
+
+ *         description: 랭킹 목록 반환
+
  */
-router.delete('/dr-mundo/game/room/:rNo', authMiddleware, gameCtrl.deleteRoom);
+
+router.get("/dr-mundo/game/ranking", gameCtrl.getRanking);
+
+// D:\Dr_mundo\back\src\routes\gameRoutes.js 파일 하단에 추가
+
+router.get('/dr-mundo/test-start', (req, res) => {
+    // 이 경로가 POST 대신 GET으로 정의되어 있어 브라우저에서 바로 테스트 가능
+    res.status(200).json({ status: 'Route Working', route: '/dr-mundo/test-start' });
+});
+
+// 실제 문제가 된 라우트 경로의 GET 버전도 테스트 해봅시다.
+router.get("/dr-mundo/game/room/start/:rNo", (req, res) => {
+    res.status(200).json({ status: 'Start GET Route Working', rNo: req.params.rNo });
+});
 
 module.exports = router;

@@ -138,7 +138,7 @@ gameRouter.get("/dr-mundo/game/room", gameCtrl.getRoomList);
  * 200:
  * description: 참가 성공
  */
-gameRouter.post("/dr-mundo/game/room/:rNo/join", authMiddleware, gameCtrl.joinRoom);
+gameRouter.post("/dr-mundo/game/room/join/:rNo", authMiddleware, gameCtrl.joinRoom); 
 
 /**
  * @swagger
@@ -180,7 +180,7 @@ gameRouter.post("/dr-mundo/game/room/start/:rNo", authMiddleware, gameCtrl.start
  * 200:
  * description: 성공적으로 방을 나감
  */
-gameRouter.delete("/dr-mundo/game/room/:rNo/leave", authMiddleware, gameCtrl.leaveRoom);
+gameRouter.delete("/dr-mundo/game/room/leave/:rNo", authMiddleware, gameCtrl.leaveRoom); 
 
 /**
  * @swagger
@@ -201,7 +201,7 @@ gameRouter.delete("/dr-mundo/game/room/:rNo/leave", authMiddleware, gameCtrl.lea
  * 200:
  * description: 방 삭제 성공
  */
-gameRouter.delete("/dr-mundo/game/room/:rNo/delete", authMiddleware, gameCtrl.deleteRoom);
+gameRouter.delete("/dr-mundo/game/room/:rNo", authMiddleware, gameCtrl.deleteRoom); 
 
 /**
  * @swagger

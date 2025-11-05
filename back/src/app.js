@@ -35,7 +35,7 @@ app.use('/', gameRouter);
 app.use(express.static(path.join(__dirname, '../../front/build')));
 
 // ✅ SPA 라우팅 처리 (React Router 지원)
-app.get('*', (req, res) => {
+app.get(/^(?!\/api|\/dr-mundo).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, '../../front/build', 'index.html'));
 });
 

@@ -92,6 +92,42 @@ function initWebSocket(server) {
         }
     }
 
+    // 플레이어 위치 업데이트 (실제 이동 처리)
+    function updatePlayerPosition(player, deltaTime) {
+        if (player.isDead) return false;
+        
+        const dx = player.targetX - player.x;
+        const dy = player.targetY - player.y;
+        const distToTarget = Math.sqrt(dx * dx + dy * dy);
+        
+        // 목표 지점에 거의 도착했으면 정확한 위치로 설정
+        if (distToTarget < 5) {
+            if (player.x !== player.targetX || player.y !== player.targetY) {
+                player.x = player.targetX;
+                player.y = player.targetY;
+                return true; // 위치 변경됨
+            }
+            return false;
+        }
+        
+        // 현재 이동 속도 계산
+        const currentSpeed = getCurrentMoveSpeed(player);
+        const moveDistance = currentSpeed * deltaTime;
+        
+        // 이동할 거리가 남은 거리보다 크면 목표 지점으로 바로 이동
+        if (moveDistance >= distToTarget) {
+            player.x = player.targetX;
+            player.y = player.targetY;
+        } else {
+            // 정규화된 방향으로 이동
+            const ratio = moveDistance / distToTarget;
+            player.x += dx * ratio;
+            player.y += dy * ratio;
+        }
+        
+        return true; // 위치 변경됨
+    }
+
     // 현재 이동속도 계산
     function getCurrentMoveSpeed(player) {
         let speed = GAME_CONSTANTS.BASE_MOVE_SPEED;
@@ -211,16 +247,28 @@ function initWebSocket(server) {
         }
     }
 
-    // 주기적 쿨타임 브로드캐스트
+    // 주기적 쿨타임 브로드캐스트 및 위치 업데이트
     setInterval(() => {
         Object.keys(rooms).forEach(roomId => {
             if (!rooms[roomId].gameStarted) return;
+            
+            const now = Date.now();
+            const positionUpdates = []; // 위치가 변경된 플레이어 추적
             
             rooms[roomId].players.forEach((player, ws) => {
                 if (ws.readyState === WebSocket.OPEN) {
                     updatePlayerHP(player);
                     
-                    const now = Date.now();
+                    // 플레이어 위치 업데이트
+                    const moved = updatePlayerPosition(player, 0.05); // 50ms = 0.05초
+                    if (moved) {
+                        positionUpdates.push({
+                            playerId: player.playerId,
+                            x: player.x,
+                            y: player.y
+                        });
+                    }
+                    
                     ws.send(JSON.stringify({
                         event: 'coolTime',
                         attack: Math.max(0, Math.ceil((player.cooldowns.attack - now) / 1000)),
@@ -229,6 +277,14 @@ function initWebSocket(server) {
                     }));
                 }
             });
+            
+            // 위치 변경된 플레이어들 브로드캐스트
+            if (positionUpdates.length > 0) {
+                broadcastToRoom(roomId, {
+                    event: 'positionUpdate',
+                    players: positionUpdates
+                });
+            }
             
             // 투사체 업데이트
             updateProjectiles(roomId);
@@ -309,14 +365,16 @@ function initWebSocket(server) {
                         if (player && !player.isDead) {
                             updatePlayerHP(player);
                             
-                            player.x = data.x;
-                            player.y = data.y;
+                            // 목표 지점만 설정 (실제 이동은 서버 루프에서 처리)
+                            player.targetX = data.x;
+                            player.targetY = data.y;
                             
+                            // 다른 플레이어들에게 이동 목표 알림
                             broadcastToRoom(ws.roomId, {
-                                event: 'playerMove',
+                                event: 'playerMoveTarget',
                                 playerId: ws.playerId,
-                                x: data.x,
-                                y: data.y
+                                targetX: data.x,
+                                targetY: data.y
                             }, ws);
                             
                             ws.send(JSON.stringify({ 

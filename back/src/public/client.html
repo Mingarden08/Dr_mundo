@@ -1,737 +1,408 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Game Test Client</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>WS Test Client</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
-            padding: 20px;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f5f5;
+            color: #222;
+            padding: 12px
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        h1 {
-            text-align: center;
-            color: #4ecca3;
-            margin-bottom: 20px;
-        }
-        
-        .connection-panel {
-            background: #16213e;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .input-group {
+
+        .row {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px
         }
-        
-        input, button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
+
+        input[type=text] {
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px
         }
-        
-        input {
-            flex: 1;
-            background: #0f3460;
-            color: #eee;
-        }
-        
+
         button {
-            background: #4ecca3;
-            color: #16213e;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
+            padding: 6px 10px;
+            border: 1px solid #999;
+            background: #eee;
+            border-radius: 4px;
+            cursor: pointer
         }
-        
-        button:hover {
-            background: #45b393;
-            transform: translateY(-2px);
-        }
-        
+
         button:disabled {
-            background: #555;
-            cursor: not-allowed;
-            transform: none;
+            opacity: 0.6;
+            cursor: not-allowed
         }
-        
-        .game-area {
-            display: grid;
-            grid-template-columns: 250px 1fr 250px;
-            gap: 20px;
+
+        #canvas {
+            background: #fff;
+            border: 1px solid #ccc;
+            cursor: crosshair
         }
-        
-        .stats-panel {
-            background: #16213e;
-            padding: 15px;
-            border-radius: 10px;
-            height: fit-content;
-        }
-        
-        .stat-item {
-            margin-bottom: 15px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 5px;
-        }
-        
-        .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #4ecca3;
-        }
-        
-        .hp-bar {
-            width: 100%;
-            height: 20px;
-            background: #0f3460;
-            border-radius: 10px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .hp-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #e74c3c, #c0392b);
-            transition: width 0.3s;
-        }
-        
-        .hp-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 12px;
-            font-weight: bold;
-            color: white;
-            text-shadow: 1px 1px 2px black;
-        }
-        
-        .cooldown-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 10px;
-        }
-        
-        .cooldown-item {
-            background: #0f3460;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
-        }
-        
-        .cooldown-name {
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 5px;
-        }
-        
-        .cooldown-time {
-            font-size: 18px;
-            font-weight: bold;
-            color: #4ecca3;
-        }
-        
-        .cooldown-time.ready {
-            color: #2ecc71;
-        }
-        
-        .cooldown-time.active {
-            color: #e74c3c;
-        }
-        
-        .canvas-container {
-            background: #16213e;
-            border-radius: 10px;
-            padding: 10px;
-            position: relative;
-        }
-        
-        canvas {
-            display: block;
-            background: #0f3460;
-            border-radius: 5px;
-            cursor: crosshair;
-        }
-        
-        .controls {
-            margin-top: 15px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        .skill-btn {
-            padding: 15px;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        
-        .skill-btn.q { background: #e74c3c; }
-        .skill-btn.d { background: #3498db; }
-        .skill-btn.f { background: #f39c12; }
-        
-        .log-panel {
-            background: #16213e;
-            padding: 15px;
-            border-radius: 10px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .log-title {
-            font-size: 14px;
-            color: #4ecca3;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-        
-        .log-item {
-            font-size: 12px;
-            padding: 5px;
-            margin-bottom: 5px;
-            background: #0f3460;
-            border-radius: 3px;
-            border-left: 3px solid #4ecca3;
-        }
-        
-        .log-item.error {
-            border-left-color: #e74c3c;
-        }
-        
-        .log-item.success {
-            border-left-color: #2ecc71;
-        }
-        
-        .status {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 3px;
-            font-size: 11px;
-            font-weight: bold;
-            margin-left: 10px;
-        }
-        
-        .status.connected {
-            background: #2ecc71;
-            color: white;
-        }
-        
-        .status.disconnected {
-            background: #e74c3c;
-            color: white;
-        }
-        
-        .players-list {
-            margin-top: 15px;
-        }
-        
-        .player-item {
-            background: #0f3460;
+
+        #log {
+            height: 220px;
+            overflow: auto;
+            background: #111;
+            color: #eee;
             padding: 8px;
-            margin-bottom: 8px;
-            border-radius: 5px;
             font-size: 12px;
+            border-radius: 4px
         }
-        
-        .instruction {
-            background: #0f3460;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            font-size: 12px;
-            line-height: 1.6;
+
+        #players {
+            background: #fff;
+            padding: 8px;
+            border: 1px solid #ccc;
+            min-height: 80px
+        }
+
+        .small {
+            font-size: 13px;
+            color: #555
         }
     </style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>🎮 WebSocket Game Test Client</h1>
-        
-        <div class="connection-panel">
-            <div class="input-group">
-                <input type="text" id="serverUrl" placeholder="WebSocket URL (ws://localhost:3000)" value="ws://dr-mundo.onrender.com">
-                <input type="text" id="roomId" placeholder="Room ID" value="1">
-                <button id="connectBtn">연결</button>
-                <button id="startBtn" disabled>게임 시작</button>
+    <h2>WebSocket Test Client</h2>
+
+    <div class="row">
+        <label class="small">WS URL</label>
+        <input id="url" type="text" value="wss://dr-mundo.onrender.com" style="flex:1" />
+        <label class="small">Room</label>
+        <input id="room" type="text" value="1" style="width:60px" />
+        <button id="connect">Connect</button>
+        <button id="disconnect" disabled>Disconnect</button>
+    </div>
+
+    <div class="row">
+        <button id="join" disabled>Join Room</button>
+        <button id="leave" disabled>Leave Room</button>
+        <button id="start" disabled>Start Game</button>
+        <span id="status" class="small">상태: disconnected</span>
+        <span style="margin-left:12px" class="small">PlayerId: <strong id="playerId">-</strong></span>
+    </div>
+
+    <div class="row">
+        <canvas id="canvas" width="640" height="360"></canvas>
+        <div style="width:260px">
+            <div style="margin-bottom:8px">
+                <button id="btnAttack" disabled>Attack (Q)</button>
+                <button id="btnGhost" disabled>Ghost (D)</button>
+                <button id="btnFlash" disabled>Flash (F)</button>
             </div>
-            <div style="margin-top: 10px;">
-                <span>상태:</span>
-                <span class="status disconnected" id="status">연결 안됨</span>
-                <span style="margin-left: 15px;">플레이어 ID: <strong id="playerId">-</strong></span>
+            <div style="margin-bottom:8px">
+                <div class="small">Players</div>
+                <div id="players"></div>
             </div>
-        </div>
-        
-        <div class="game-area">
-            <!-- 왼쪽 패널: 내 스탯 -->
-            <div class="stats-panel">
-                <h3 style="margin-bottom: 15px; color: #4ecca3;">📊 내 스탯</h3>
-                
-                <div class="stat-item">
-                    <div class="stat-label">체력</div>
-                    <div class="hp-bar">
-                        <div class="hp-fill" id="hpBar" style="width: 100%"></div>
-                        <div class="hp-text" id="hpText">705 / 705</div>
-                    </div>
-                </div>
-                
-                <div class="stat-item">
-                    <div class="stat-label">이동 속도</div>
-                    <div class="stat-value" id="moveSpeed">355</div>
-                </div>
-                
-                <div class="stat-item">
-                    <div class="stat-label">위치</div>
-                    <div class="stat-value" id="position">400, 300</div>
-                </div>
-                
-                <div class="stat-item" style="margin-top: 20px;">
-                    <div class="stat-label">쿨타임</div>
-                    <div class="cooldown-grid">
-                        <div class="cooldown-item">
-                            <div class="cooldown-name">Q (공격)</div>
-                            <div class="cooldown-time ready" id="coolQ">준비</div>
-                        </div>
-                        <div class="cooldown-item">
-                            <div class="cooldown-name">D (유체화)</div>
-                            <div class="cooldown-time ready" id="coolD">준비</div>
-                        </div>
-                        <div class="cooldown-item">
-                            <div class="cooldown-name">F (점멸)</div>
-                            <div class="cooldown-time ready" id="coolF">준비</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="instruction">
-                    <strong>조작법:</strong><br>
-                    • 우클릭: 이동<br>
-                    • Q + 클릭: 공격<br>
-                    • D: 유체화<br>
-                    • F + 클릭: 점멸<br>
-                </div>
-            </div>
-            
-            <!-- 중앙: 게임 캔버스 -->
             <div>
-                <div class="canvas-container">
-                    <canvas id="gameCanvas" width="800" height="600"></canvas>
-                    <div class="controls">
-                        <button class="skill-btn q" id="qBtn" disabled>Q - 공격</button>
-                        <button class="skill-btn d" id="dBtn" disabled>D - 유체화</button>
-                        <button class="skill-btn f" id="fBtn" disabled>F - 점멸</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 오른쪽 패널: 로그 & 플레이어 -->
-            <div>
-                <div class="log-panel">
-                    <div class="log-title">📜 이벤트 로그</div>
-                    <div id="logContainer"></div>
-                </div>
-                
-                <div class="stats-panel" style="margin-top: 20px;">
-                    <h3 style="margin-bottom: 15px; color: #4ecca3;">👥 플레이어</h3>
-                    <div id="playersList"></div>
-                </div>
+                <div class="small">Raw send (JSON)</div>
+                <input id="raw" type="text" placeholder='{"event":"ping"}' style="width:100%;box-sizing:border-box" />
+                <div style="margin-top:6px"><button id="sendRaw" disabled>Send</button></div>
             </div>
         </div>
     </div>
 
+    <h4>Logs</h4>
+    <div id="log"></div>
+
     <script>
-        let ws = null;
-        let myPlayerId = null;
-        let players = new Map();
-        let currentSkill = null;
-        let gameStarted = false;
-        let myHP = 705;
-        let myMaxHP = 705;
-        
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        // UI 요소
-        const connectBtn = document.getElementById('connectBtn');
-        const startBtn = document.getElementById('startBtn');
-        const qBtn = document.getElementById('qBtn');
-        const dBtn = document.getElementById('dBtn');
-        const fBtn = document.getElementById('fBtn');
-        
-        // 로그 추가
-        function addLog(message, type = 'info') {
-            const logContainer = document.getElementById('logContainer');
-            const logItem = document.createElement('div');
-            logItem.className = `log-item ${type}`;
-            const time = new Date().toLocaleTimeString();
-            logItem.textContent = `[${time}] ${message}`;
-            logContainer.insertBefore(logItem, logContainer.firstChild);
-            
-            // 최대 50개 로그만 유지
-            while (logContainer.children.length > 50) {
-                logContainer.removeChild(logContainer.lastChild);
-            }
-        }
-        
-        // WebSocket 연결
-        connectBtn.addEventListener('click', () => {
-            const url = document.getElementById('serverUrl').value;
-            const roomId = document.getElementById('roomId').value;
-            
-            ws = new WebSocket(url);
-            
-            ws.onopen = () => {
-                document.getElementById('status').className = 'status connected';
-                document.getElementById('status').textContent = '연결됨';
-                addLog('서버에 연결되었습니다.', 'success');
-                connectBtn.disabled = true;
-            };
-            
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                handleMessage(data);
-            };
-            
-            ws.onclose = () => {
-                document.getElementById('status').className = 'status disconnected';
-                document.getElementById('status').textContent = '연결 안됨';
-                addLog('서버 연결이 끊어졌습니다.', 'error');
-                connectBtn.disabled = false;
-                startBtn.disabled = true;
-                disableSkills();
-            };
-            
-            ws.onerror = (error) => {
-                addLog('WebSocket 오류 발생', 'error');
-                console.error(error);
-            };
-        });
-        
-        // 메시지 처리
-        function handleMessage(data) {
-            switch (data.event) {
-                case 'connected':
-                    myPlayerId = data.playerId;
-                    document.getElementById('playerId').textContent = myPlayerId;
-                    addLog(`플레이어 ID: ${myPlayerId}`, 'success');
-                    
-                    // 방 참가
-                    const roomId = document.getElementById('roomId').value;
-                    ws.send(JSON.stringify({ event: 'join', roomId: parseInt(roomId) }));
-                    break;
-                
-                case 'joined':
-                    if (data.success) {
-                        addLog(`방 ${document.getElementById('roomId').value}에 참가했습니다.`, 'success');
-                        startBtn.disabled = false;
-                        
-                        // 내 플레이어 초기화
-                        players.set(myPlayerId, {
-                            playerId: myPlayerId,
-                            x: 400,
-                            y: 300,
-                            hp: 705,
-                            maxHp: 705
-                        });
-                        
-                        updatePlayersList();
-                        draw();
-                    }
-                    break;
-                
-                case 'gameStarted':
-                    gameStarted = true;
-                    enableSkills();
-                    addLog('게임이 시작되었습니다!', 'success');
-                    startBtn.disabled = true;
-                    break;
-                
-                case 'playerJoined':
-                    players.set(data.playerId, {
-                        playerId: data.playerId,
-                        x: data.x,
-                        y: data.y,
-                        hp: data.hp,
-                        maxHp: data.maxHp
-                    });
-                    addLog(`${data.playerId}이(가) 참가했습니다.`);
-                    updatePlayersList();
-                    draw();
-                    break;
-                
-                case 'playerLeft':
-                    players.delete(data.playerId);
-                    addLog(`${data.playerId}이(가) 나갔습니다.`);
-                    updatePlayersList();
-                    draw();
-                    break;
-                
-                case 'playerMove':
-                    const player = players.get(data.playerId);
-                    if (player) {
-                        player.x = data.x;
-                        player.y = data.y;
-                        draw();
-                    }
-                    break;
-                
-                case 'coolTime':
-                    updateCooldowns(data);
-                    break;
-                
-                case 'attackCast':
-                    addLog(`${data.playerId}이(가) 공격을 시전했습니다.`);
-                    drawProjectile(data.fromX, data.fromY, data.x, data.y);
-                    break;
-                
-                case 'hit':
-                    myHP = data.hp;
-                    addLog(`피격! 현재 HP: ${Math.round(data.hp)}`, 'error');
-                    updateMyStats();
-                    draw();
-                    break;
-                
-                case 'ghostActivated':
-                    addLog(`${data.playerId}이(가) 유체화를 사용했습니다.`, 'success');
-                    break;
-                
-                case 'playerFlashed':
-                    const flashPlayer = players.get(data.playerId);
-                    if (flashPlayer) {
-                        flashPlayer.x = data.x;
-                        flashPlayer.y = data.y;
-                        addLog(`${data.playerId}이(가) 점멸을 사용했습니다.`);
-                        draw();
-                    }
-                    break;
-                
-                case 'finish':
-                    gameStarted = false;
-                    disableSkills();
-                    addLog(`게임 종료! 승자: ${data.playerId} (방: ${data.roomId})`, 'success');
-                    break;
-            }
-        }
-        
-        // 내 스탯 업데이트
-        function updateMyStats() {
-            const hpPercent = (myHP / myMaxHP) * 100;
-            document.getElementById('hpBar').style.width = hpPercent + '%';
-            document.getElementById('hpText').textContent = `${Math.round(myHP)} / ${myMaxHP}`;
-            
-            const me = players.get(myPlayerId);
-            if (me) {
-                document.getElementById('position').textContent = `${Math.round(me.x)}, ${Math.round(me.y)}`;
-            }
-        }
-        
-        // 쿨타임 업데이트
-        function updateCooldowns(data) {
-            updateCooldown('coolQ', data.attack);
-            updateCooldown('coolD', data.ghost);
-            updateCooldown('coolF', data.flash);
-        }
-        
-        function updateCooldown(elementId, seconds) {
-            const el = document.getElementById(elementId);
-            if (seconds === 0) {
-                el.textContent = '준비';
-                el.className = 'cooldown-time ready';
-            } else {
-                el.textContent = seconds + 's';
-                el.className = 'cooldown-time active';
-            }
-        }
-        
-        // 플레이어 목록 업데이트
-        function updatePlayersList() {
-            const list = document.getElementById('playersList');
-            list.innerHTML = '';
-            players.forEach((player, id) => {
+        (() => {
+            const urlInput = document.getElementById('url');
+            const roomInput = document.getElementById('room');
+            const connectBtn = document.getElementById('connect');
+            const disconnectBtn = document.getElementById('disconnect');
+            const joinBtn = document.getElementById('join');
+            const leaveBtn = document.getElementById('leave');
+            const startBtn = document.getElementById('start');
+            const statusSpan = document.getElementById('status');
+            const playerIdEl = document.getElementById('playerId');
+            const logEl = document.getElementById('log');
+            const playersEl = document.getElementById('players');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const btnAttack = document.getElementById('btnAttack');
+            const btnGhost = document.getElementById('btnGhost');
+            const btnFlash = document.getElementById('btnFlash');
+            const rawInput = document.getElementById('raw');
+            const sendRawBtn = document.getElementById('sendRaw');
+
+            let ws = null;
+            let myPlayerId = null;
+            let roomId = null;
+            let players = new Map();
+            let currentSkill = null;
+            let gameStarted = false;
+
+            function log(msg, type = 'info') {
+                const time = new Date().toLocaleTimeString();
                 const item = document.createElement('div');
-                item.className = 'player-item';
-                const isMe = id === myPlayerId;
-                item.innerHTML = `
-                    <strong>${isMe ? '👤 ' : ''}${id}</strong><br>
-                    HP: ${Math.round(player.hp)} / ${player.maxHp}<br>
-                    위치: (${Math.round(player.x)}, ${Math.round(player.y)})
-                `;
-                list.appendChild(item);
-            });
-        }
-        
-        // 캔버스 그리기
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // 격자 그리기
-            ctx.strokeStyle = '#1a1a2e';
-            ctx.lineWidth = 1;
-            for (let i = 0; i < canvas.width; i += 50) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, canvas.height);
-                ctx.stroke();
+                item.textContent = `[${time}] ${msg}`;
+                if (type === 'error') item.style.color = 'salmon';
+                logEl.prepend(item);
             }
-            for (let i = 0; i < canvas.height; i += 50) {
-                ctx.beginPath();
-                ctx.moveTo(0, i);
-                ctx.lineTo(canvas.width, i);
-                ctx.stroke();
+
+            function setStatus(s) {
+                statusSpan.textContent = '상태: ' + s;
             }
-            
-            // 플레이어 그리기
-            players.forEach((player, id) => {
-                const isMe = id === myPlayerId;
-                
-                // 캐릭터
-                ctx.fillStyle = isMe ? '#4ecca3' : '#e74c3c';
-                ctx.beginPath();
-                ctx.arc(player.x, player.y, 15, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // HP 바
-                const hpPercent = player.hp / player.maxHp;
-                ctx.fillStyle = '#2c3e50';
-                ctx.fillRect(player.x - 20, player.y - 30, 40, 5);
-                ctx.fillStyle = hpPercent > 0.5 ? '#2ecc71' : hpPercent > 0.25 ? '#f39c12' : '#e74c3c';
-                ctx.fillRect(player.x - 20, player.y - 30, 40 * hpPercent, 5);
-                
-                // 이름
-                ctx.fillStyle = '#eee';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(isMe ? 'YOU' : id.substr(-6), player.x, player.y - 35);
+
+            function enableUIOnConnect() {
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                joinBtn.disabled = false;
+                sendRawBtn.disabled = false;
+            }
+
+            function disableUIOnDisconnect() {
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                joinBtn.disabled = true;
+                leaveBtn.disabled = true;
+                startBtn.disabled = true;
+                btnAttack.disabled = true;
+                btnGhost.disabled = true;
+                btnFlash.disabled = true;
+                sendRawBtn.disabled = true;
+                playerIdEl.textContent = '-';
+            }
+
+            function drawPlayers() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // simple grid
+                ctx.strokeStyle = '#eee';
+                ctx.lineWidth = 0.3;
+                for (let i = 0; i < canvas.width; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke(); }
+                for (let j = 0; j < canvas.height; j += 40) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke(); }
+
+                players.forEach(p => {
+                    ctx.fillStyle = (p.playerId === myPlayerId) ? '#2b8' : '#d33';
+                    ctx.beginPath();
+                    ctx.arc(p.x || 400, p.y || 200, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(p.playerId === myPlayerId ? 'YOU' : (p.playerId || '').slice(-6), p.x || 400, (p.y || 200) - 18);
+                });
+            }
+
+            function updatePlayersListUI() {
+                playersEl.innerHTML = '';
+                players.forEach(p => {
+                    const div = document.createElement('div');
+                    div.textContent = `${p.playerId} — HP:${Math.round(p.hp || 0)} — (${Math.round(p.x || 0)},${Math.round(p.y || 0)})`;
+                    playersEl.appendChild(div);
+                });
+            }
+
+            connectBtn.addEventListener('click', () => {
+                const url = urlInput.value.trim();
+                if (!url) return alert('URL을 입력하세요.');
+                try {
+                    ws = new WebSocket(url);
+                } catch (e) {
+                    log('WebSocket 생성 실패: ' + e.message, 'error');
+                    return;
+                }
+                setStatus('connecting...');
+                log('Connecting to ' + url);
+                ws.onopen = () => {
+                    setStatus('connected');
+                    enableUIOnConnect();
+                    log('연결 성공', 'info');
+                    // 서버는 연결 직후 connected 이벤트를 보냄
+                };
+                ws.onmessage = (ev) => {
+                    try {
+                        const data = JSON.parse(ev.data);
+                        handleMessage(data);
+                    } catch (e) {
+                        log('수신 메시지 파싱 실패: ' + ev.data, 'error');
+                    }
+                };
+                ws.onclose = () => {
+                    setStatus('disconnected');
+                    disableUIOnDisconnect();
+                    log('연결 종료', 'error');
+                    players.clear();
+                    updatePlayersListUI();
+                    drawPlayers();
+                    ws = null;
+                    gameStarted = false;
+                };
+                ws.onerror = (err) => {
+                    log('WebSocket 오류', 'error');
+                    console.error(err);
+                };
             });
-        }
-        
-        // 투사체 애니메이션
-        function drawProjectile(fromX, fromY, toX, toY) {
-            const startTime = Date.now();
-            const duration = 1000;
-            
-            function animate() {
-                const elapsed = Date.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                
-                const x = fromX + (toX - fromX) * progress;
-                const y = fromY + (toY - fromY) * progress;
-                
-                draw();
-                
-                // 투사체 그리기
-                ctx.fillStyle = '#f39c12';
-                ctx.beginPath();
-                ctx.arc(x, y, 8, 0, Math.PI * 2);
-                ctx.fill();
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
+
+            disconnectBtn.addEventListener('click', () => {
+                if (ws) ws.close();
+            });
+
+            joinBtn.addEventListener('click', () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                roomId = parseInt(roomInput.value) || 1;
+                ws.send(JSON.stringify({ event: 'join', roomId }));
+                log('join 요청 보냄: room=' + roomId);
+            });
+
+            leaveBtn.addEventListener('click', () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ event: 'leave', roomId }));
+                log('leave 요청 보냄');
+            });
+
+            startBtn.addEventListener('click', () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ event: 'start', roomId }));
+                log('start 요청 보냄');
+            });
+
+            btnAttack.addEventListener('click', () => { currentSkill = 'attack'; log('Attack 모드: 캔버스 클릭으로 목표 지정'); });
+            btnFlash.addEventListener('click', () => { currentSkill = 'flash'; log('Flash 모드: 캔버스 클릭으로 목적지 지정'); });
+            btnGhost.addEventListener('click', () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ event: 'ghost', speed: 340 }));
+                log('ghost 요청 보냄');
+            });
+
+            sendRawBtn.addEventListener('click', () => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                const raw = rawInput.value.trim();
+                if (!raw) return;
+                try {
+                    const obj = JSON.parse(raw);
+                    ws.send(JSON.stringify(obj));
+                    log('Raw 전송: ' + JSON.stringify(obj));
+                } catch (e) {
+                    alert('유효한 JSON 으로 입력하세요.');
+                }
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.round(e.clientX - rect.left);
+                const y = Math.round(e.clientY - rect.top);
+
+                if (currentSkill === 'attack') {
+                    ws.send(JSON.stringify({ event: 'attack', x, y, damage: 80 }));
+                    log(`attack 전송 -> x:${x}, y:${y}`);
+                    currentSkill = null;
+                } else if (currentSkill === 'flash') {
+                    ws.send(JSON.stringify({ event: 'flash', x, y }));
+                    log(`flash 전송 -> x:${x}, y:${y}`);
+                    currentSkill = null;
+                } else {
+                    // 일반 이동
+                    ws.send(JSON.stringify({ event: 'move', x, y }));
+                    log(`move 전송 -> x:${x}, y:${y}`);
+                    // 로컬 예측(즉시 위치 반영)
+                    const me = players.get(myPlayerId);
+                    if (me) { me.x = x; me.y = y; updatePlayersListUI(); drawPlayers(); }
+                }
+            });
+
+            // 수신 메시지 처리
+            function handleMessage(data) {
+                if (!data || typeof data !== 'object') return;
+                switch (data.event) {
+                    case 'connected':
+                        myPlayerId = data.playerId;
+                        playerIdEl.textContent = myPlayerId;
+                        log('서버가 부여한 playerId: ' + myPlayerId);
+                        break;
+                    case 'joined':
+                        if (data.success) {
+                            log('방 참가 성공');
+                            joinBtn.disabled = true;
+                            leaveBtn.disabled = false;
+                            startBtn.disabled = false;
+                            // 내 초기 상태 추가
+                            players.set(myPlayerId, { playerId: myPlayerId, x: 400, y: 200, hp: 705, maxHp: 705 });
+                            updatePlayersListUI(); drawPlayers();
+                        } else {
+                            log('방 참가 실패', 'error');
+                        }
+                        break;
+                    case 'playerJoined':
+                        players.set(data.playerId, { playerId: data.playerId, x: data.x || 400, y: data.y || 200, hp: data.hp || 705, maxHp: data.maxHp || 705 });
+                        log(`${data.playerId} 참가함`);
+                        updatePlayersListUI(); drawPlayers();
+                        break;
+                    case 'playerLeft':
+                        players.delete(data.playerId);
+                        log(`${data.playerId} 퇴장`);
+                        updatePlayersListUI(); drawPlayers();
+                        break;
+                    case 'gameStarted':
+                        gameStarted = true;
+                        btnAttack.disabled = false;
+                        btnGhost.disabled = false;
+                        btnFlash.disabled = false;
+                        startBtn.disabled = true;
+                        log('게임 시작');
+                        break;
+                    case 'playerMove':
+                        {
+                            // playerId, x, y
+                            const p = players.get(data.playerId) || { playerId: data.playerId };
+                            p.x = data.x; p.y = data.y;
+                            players.set(data.playerId, p);
+                            updatePlayersListUI(); drawPlayers();
+                        }
+                        break;
+                    case 'attackCast':
+                        log(`${data.playerId} 공격 시전`);
+                        // 브로드캐스트를 통해 투사체를 시각화하거나 히트 이벤트를 기다리면 됨
+                        break;
+                    case 'hit':
+                        log(`피격: x=${data.x}, y=${data.y}, hp=${data.hp}`, 'error');
+                        // 서버가 보낸 hp를 토대로 내 hp 업데이트 (서버 주도)
+                        if (myPlayerId) {
+                            const me = players.get(myPlayerId);
+                            if (me) { me.hp = data.hp; players.set(myPlayerId, me); updatePlayersListUI(); drawPlayers(); }
+                        }
+                        break;
+                    case 'ghostActivated':
+                        log(`${data.playerId} 유체화 활성화`);
+                        break;
+                    case 'playerFlashed':
+                        {
+                            const p = players.get(data.playerId) || { playerId: data.playerId };
+                            p.x = data.x; p.y = data.y;
+                            players.set(data.playerId, p);
+                            log(`${data.playerId} 점멸`);
+                            updatePlayersListUI(); drawPlayers();
+                        }
+                        break;
+                    case 'coolTime':
+                        // 쿨타임 정보를 받는다 (attack, ghost, flash)
+                        log(`쿨타임: attack=${data.attack}s ghost=${data.ghost}s flash=${data.flash}s`);
+                        break;
+                    case 'finish':
+                        log(`게임 종료. 승자: ${data.playerId}`, 'info');
+                        gameStarted = false;
+                        btnAttack.disabled = true; btnGhost.disabled = true; btnFlash.disabled = true;
+                        break;
+                    default:
+                        // 기타 메시지 그대로 출력
+                        log('수신: ' + JSON.stringify(data));
                 }
             }
-            
-            animate();
-        }
-        
-        // 스킬 활성화/비활성화
-        function enableSkills() {
-            qBtn.disabled = false;
-            dBtn.disabled = false;
-            fBtn.disabled = false;
-        }
-        
-        function disableSkills() {
-            qBtn.disabled = true;
-            dBtn.disabled = true;
-            fBtn.disabled = true;
-        }
-        
-        // 캔버스 클릭 이벤트
-        canvas.addEventListener('click', (e) => {
-            if (!gameStarted) return;
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            if (currentSkill === 'q') {
-                // Q 스킬 (공격)
-                ws.send(JSON.stringify({ event: 'attack', x: Math.round(x), y: Math.round(y), damage: 80 }));
-                currentSkill = null;
-                canvas.style.cursor = 'crosshair';
-                addLog('Q 스킬 시전!', 'success');
-            } else if (currentSkill === 'f') {
-                // F 스킬 (점멸)
-                ws.send(JSON.stringify({ event: 'flash', x: Math.round(x), y: Math.round(y) }));
-                currentSkill = null;
-                canvas.style.cursor = 'crosshair';
-                addLog('점멸 시전!', 'success');
-            } else {
-                // 일반 이동
-                ws.send(JSON.stringify({ event: 'move', x: Math.round(x), y: Math.round(y) }));
-                
-                // 내 플레이어 위치 즉시 업데이트
-                const me = players.get(myPlayerId);
-                if (me) {
-                    me.x = x;
-                    me.y = y;
-                    updateMyStats();
-                    draw();
-                }
-            }
-        });
-        
-        // 스킬 버튼
-        qBtn.addEventListener('click', () => {
-            currentSkill = 'q';
-            canvas.style.cursor = 'pointer';
-            addLog('Q 스킬 활성화. 클릭하여 공격하세요.');
-        });
-        
-        dBtn.addEventListener('click', () => {
-            ws.send(JSON.stringify({ event: 'ghost', speed: 340 }));
-            addLog('유체화 사용!', 'success');
-        });
-        
-        fBtn.addEventListener('click', () => {
-            currentSkill = 'f';
-            canvas.style.cursor = 'pointer';
-            addLog('점멸 활성화. 클릭하여 이동하세요.');
-        });
-        
-        // 게임 시작
-        startBtn.addEventListener('click', () => {
-            ws.send(JSON.stringify({ event: 'start', roomId: parseInt(document.getElementById('roomId').value) }));
-        });
-        
-        // 주기적으로 화면 업데이트
-        setInterval(() => {
-            if (gameStarted) {
-                draw();
-            }
-        }, 100);
+
+            // 초기 draw
+            drawPlayers();
+
+        })();
     </script>
 </body>
+
 </html>

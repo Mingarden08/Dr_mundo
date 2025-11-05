@@ -4,39 +4,37 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+
+// 라우터 모듈
 const memberRoutes = require('./routes/memberRoutes');
-// const gameRoutes = require('./routes/gameRoutes'); // ❌ gameRoutes 모듈 로드 제거됨
+const gameRouter = require('./routes/gameRoutes'); // gameRoutes로 분리
+
+// Swagger
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./utils/swagger');
 
-// Game 라우트에서 필요한 모듈을 app.js에서 직접 로드
-const gameCtrl = require("./controllers/gameController");
-const { authMiddleware } = require("./middlewares/auth"); 
-
 const app = express();
-const gameRouter = express.Router(); // 👈 Game Routes 등록을 위한 새로운 Router 객체 생성
 
-app.use(express.static(path.join(__dirname, 'public')));
-
-// 기본 미들웨어
-
-// 🚀 CORS 설정 수정: 로컬 개발 환경의 출처 (http://localhost:3001)를 허용 목록에 추가합니다.
+// ✅ 기본 미들웨어
 app.use(cors({
-    // Render 배포 주소와 로컬 개발 주소를 모두 허용
-    origin: ['https://dr-mundo.onrender.com', 'http://localhost:3001'], 
+    origin: ['https://dr-mundo.onrender.com', 'http://localhost:3001'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
 }));
 app.use(express.json());
 app.use(morgan('dev'));
 
-// Member 라우트 등록
+// ✅ 정적 파일 서빙 (예: 이미지, CSS 등)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ✅ 라우터 등록
 app.use('/', memberRoutes);
+app.use('/', gameRouter);
 
-// *******************************************************************
-// 🚨 Game Routes 직접 등록 (라우팅 로드 오류 우회) 🚨
-// *******************************************************************
+// ✅ React build 폴더 서빙
+app.use(express.static(path.join(__dirname, '../../front/build')));
 
+<<<<<<< HEAD
 /**
  * @swagger
  * /dr-mundo/game/room/create:
@@ -265,18 +263,17 @@ gameRouter.get("/dr-mundo/game/ranking", gameCtrl.getRanking);
 // 라우팅 인식 테스트용 라우트
 gameRouter.get('/dr-mundo/test-start', (req, res) => {
     res.status(200).json({ status: 'Route Working', route: '/dr-mundo/test-start' });
+=======
+// ✅ SPA 라우팅 처리 (React Router 지원)
+app.get(/^(?!\/api|\/dr-mundo).*$/, (req, res) => {
+    res.sendFile(path.join(__dirname, '../../front/build', 'index.html'));
+>>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 });
 
-
-// 최종적으로 app에 gameRouter를 연결
-app.use('/', gameRouter); 
-// *******************************************************************
-
-
-// Swagger
+// ✅ Swagger 문서
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// 헬스 체크용 기본 라우트 (정적 파일 충돌 방지를 위해 경로를 /health로 변경)
+// ✅ 헬스 체크용 라우트
 app.get('/health', (req, res) => {
     res.json({
         code: 200,
@@ -285,10 +282,9 @@ app.get('/health', (req, res) => {
     });
 });
 
-// 모든 라우트가 처리되지 못한 경우 404 처리 (선택 사항)
+// ✅ 404 처리 (선택 사항)
 app.use((req, res, next) => {
-    res.status(404).send('Sorry cant find that!');
+    res.status(404).send('Sorry, cant find that!');
 });
-
 
 module.exports = app;

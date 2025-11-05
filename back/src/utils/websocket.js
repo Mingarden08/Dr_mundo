@@ -698,8 +698,15 @@ function initWebSocket(server) {
             }
         }
     });
+
+    return { wss, gameStates };
     
     return wss; // wss 객체 반환
 }
 
+<<<<<<< HEAD
 module.exports = initWebSocket; // initWebSocket 함수만 내보냅니다.
+=======
+
+module.exports = { initWebSocket, gameStates, playerSockets };
+>>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f

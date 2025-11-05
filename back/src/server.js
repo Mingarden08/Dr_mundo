@@ -12,14 +12,27 @@ const server = http.createServer(app);
 // WebSocket 초기화 및 HTTP 서버에 연결
 const wss = initWebSocket(server); 
 
+<<<<<<< HEAD
 // Express 앱 인스턴스에 wss 객체를 설정하여 다른 모듈에서 접근 가능하게 합니다.
 app.set('websocket', { wss }); 
+=======
+// WebSocket 객체를 app에 저장 (다른 모듈에서 사용 가능)
+app.set('websocket', { wss, checkHit, gameStates });
+>>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 
 sequelize.sync({ alter: false })
     .then(() => {
         console.log('✅ Database synced');
+<<<<<<< HEAD
         // HTTP 및 WebSocket 서버 시작
         server.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+=======
+        server.listen(PORT, () => {
+            console.log(`🚀 Server running at http://localhost:${PORT}`);
+            console.log(`📚 Swagger available at http://localhost:${PORT}/api-docs`);
+            console.log(`🔌 WebSocket listening at ws://localhost:${PORT}`);
+        });
+>>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
     })
     .catch(err => {
         console.error('❌ Database sync failed:', err);

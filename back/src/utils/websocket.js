@@ -714,10 +714,12 @@ function initWebSocket(server) {
             }));
         }
     });
+
+    return { wss, gameStates };
     
     // 이 파일에는 checkHit 함수가 필요하지 않습니다.
     // checkHit 로직은 updateProjectiles 내부에서 처리됩니다.
 }
 
 
-module.exports = initWebSocket;
+module.exports = { initWebSocket, gameStates, playerSockets };

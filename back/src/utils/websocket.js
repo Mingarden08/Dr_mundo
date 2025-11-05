@@ -719,7 +719,5 @@ function initWebSocket(server) {
     // checkHit 로직은 updateProjectiles 내부에서 처리됩니다.
 }
 
-module.exports = {
-    initWebSocket,
-    gameStates // 필요하다면 외부 모듈에서 접근 가능하도록 내보냄
-};
+
+module.exports = initWebSocket;

@@ -6,6 +6,46 @@ const successResp = (data) => ({
     data 
 });
 
+// 게임 시작 (새로 추가)
+exports.startGame = async (req, res) => {
+    try {
+        const roomId = parseInt(req.params.rNo);
+        const memberId = req.user.id; // authMiddleware에서 설정된 member_id
+
+        if (!roomId || isNaN(roomId)) {
+            return res.status(400).json({ 
+                code: 400, 
+                message: "방 번호가 필요합니다.", 
+                data: null 
+            });
+        }
+
+        // 서비스 계층의 startGame 함수 호출 (DB 상태 업데이트 및 검증)
+        const result = await gameService.startGame(roomId, memberId);
+        
+        // 성공 응답 (실제 게임 시작 알림은 웹소켓을 통해 처리됨)
+        return res.json(successResp(result));
+
+    } catch (err) {
+        console.error(err);
+        if (err.message === "방을 찾을 수 없습니다." || 
+            err.message === "방장만 게임을 시작할 수 있습니다." ||
+            err.message === "플레이어가 2명이 아닙니다." ||
+            err.message === "이미 게임이 시작되었습니다.") {
+            return res.status(400).json({ 
+                code: 400, 
+                message: err.message, 
+                data: null 
+            });
+        }
+        return res.status(500).json({ 
+            code: 500, 
+            message: "서버 에러", 
+            data: null 
+        });
+    }
+};
+
 // 방 만들기
 exports.createRoom = async (req, res) => {
     try {

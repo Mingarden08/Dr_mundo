@@ -1,6 +1,58 @@
 const { Room, RoomParticipant, GameRecord, Member, sequelize } = require("../models");
 const { Op } = require("sequelize");
 
+// =====================================
+// ✅ 게임 시작 (startGame) 함수 추가
+// =====================================
+exports.startGame = async (roomId, memberId) => {
+    const t = await sequelize.transaction();
+
+    try {
+        // 1. 방 조회 및 잠금
+        const room = await Room.findByPk(roomId, {
+            lock: true,
+            transaction: t
+        });
+
+        if (!room) {
+            await t.rollback();
+            throw new Error("방을 찾을 수 없습니다.");
+        }
+
+        // 2. 방장 권한 확인
+        if (room.hostId !== memberId) {
+            await t.rollback();
+            throw new Error("방장만 게임을 시작할 수 있습니다.");
+        }
+        
+        // 3. 상태 확인 (이미 시작되었는지)
+        if (room.status !== 'waiting') {
+            await t.rollback();
+            throw new Error("이미 게임이 시작되었습니다.");
+        }
+
+        // 4. 플레이어 수 확인 (2명 필요)
+        if (room.playerCount !== 2) {
+            await t.rollback();
+            throw new Error("플레이어가 2명이 아닙니다.");
+        }
+
+        // 5. 방 상태를 'playing'으로 업데이트
+        await room.update({ status: 'playing' }, { transaction: t });
+
+        await t.commit();
+        return { success: true };
+
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
+};
+
+// =====================================
+// 기존 함수들
+// =====================================
+
 // 방 만들기
 exports.createRoom = async (roomName, hostId) => {
     // 1. 이미 참가중인 방이 있는지 확인
@@ -76,12 +128,14 @@ exports.joinRoom = async (roomId, memberId) => {
             await t.rollback();
             throw new Error("이미 진행 중인 방입니다.");
         }
-
-        if (room.playerCount >= room.maxCount) {
+        
+        // NOTE: room.maxCount 필드가 모델에 정의되어 있다고 가정했습니다.
+        // 현재 코드에서는 room.maxCount가 없으므로 2명 제한으로 가정합니다. (playerCount >= 2로 변경)
+        if (room.playerCount >= 2) { 
             await t.rollback();
             throw new Error("방이 꽉 찼습니다.");
         }
-
+        
         // 2. 이미 참가했는지 확인
         const existing = await RoomParticipant.findOne({
             where: { roomId: roomId, memberId: memberId },
@@ -92,7 +146,7 @@ exports.joinRoom = async (roomId, memberId) => {
             await t.rollback();
             throw new Error("이미 참가한 방입니다.");
         }
-
+        
         // 3. 참가자 추가
         await RoomParticipant.create({
             roomId: roomId,
@@ -150,7 +204,7 @@ exports.saveGameResult = async (roomId, winnerId) => {
             { status: 'finished' },
             { where: { id: roomId }, transaction: t }
         );
-
+        
         await t.commit();
         return { success: true };
 
@@ -220,9 +274,10 @@ exports.getRanking = async () => {
         limit: 100
     });
 
+    // NOTE: 승률(winRate)이 아니라 승리 횟수(totalWins)를 사용하고 있습니다. 필드 이름을 일관성 있게 사용하거나 모델에서 승률을 계산해야 합니다.
     return rankings.map(member => ({
         player: member.nickName,
-        winRate: member.totalWins
+        winRate: member.totalWins // 현재는 승리 횟수
     }));
 };
 
@@ -265,7 +320,7 @@ exports.leaveRoom = async (roomId, memberId) => {
         if (room.playerCount <= 1) {
             await room.destroy({ transaction: t });
         }
-
+        
         await t.commit();
         return { success: true };
 

@@ -1,7 +1,7 @@
 const http = require('http');
 const app = require('./app');
 const { sequelize } = require('./models');
-const initWebSocket = require('./utils/websocket');
+const { initWebSocket } = require('./utils/websocket');
 
 const PORT = process.env.PORT || 3000;
 

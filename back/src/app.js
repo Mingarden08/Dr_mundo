@@ -272,6 +272,14 @@ gameRouter.get('/dr-mundo/test-start', (req, res) => {
 app.use('/', gameRouter); 
 // *******************************************************************
 
+// ✅ React build 폴더 서빙
+app.use(express.static(path.join(__dirname, '../../front/build')));
+
+// ✅ SPA 라우팅 처리
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../../front/build', 'index.html'));
+});
+
 
 // Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

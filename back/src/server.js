@@ -1,9 +1,10 @@
 // D:\Dr_mundo\back\src\server.js
 
 const http = require('http');
-const app = require('./app'); // 'app' 모듈이 Express 앱 인스턴스를 내보낸다고 가정
-const { sequelize } = require('./models'); // models/index.js에서 sequelize 객체 require
-const initWebSocket = require('./utils/websocket'); // 위에서 정의한 웹소켓 초기화 함수
+const app = require('./app');
+const { sequelize } = require('./models');
+// 웹소켓 모듈에서 initWebSocket, checkHit, gameStates를 구조 분해 할당으로 불러옵니다.
+const { initWebSocket, checkHit, gameStates } = require('./utils/websocket'); 
 
 const PORT = process.env.PORT || 3000;
 
@@ -12,27 +13,18 @@ const server = http.createServer(app);
 // WebSocket 초기화 및 HTTP 서버에 연결
 const wss = initWebSocket(server); 
 
-<<<<<<< HEAD
-// Express 앱 인스턴스에 wss 객체를 설정하여 다른 모듈에서 접근 가능하게 합니다.
-app.set('websocket', { wss }); 
-=======
-// WebSocket 객체를 app에 저장 (다른 모듈에서 사용 가능)
+// WebSocket 관련 모든 객체를 app에 설정하여 다른 모듈에서 접근 가능하게 합니다.
 app.set('websocket', { wss, checkHit, gameStates });
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 
 sequelize.sync({ alter: false })
     .then(() => {
         console.log('✅ Database synced');
-<<<<<<< HEAD
-        // HTTP 및 WebSocket 서버 시작
-        server.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
-=======
+        // 서버 시작 시 Swagger 및 WebSocket 주소 포함하여 자세한 로그 출력
         server.listen(PORT, () => {
             console.log(`🚀 Server running at http://localhost:${PORT}`);
             console.log(`📚 Swagger available at http://localhost:${PORT}/api-docs`);
             console.log(`🔌 WebSocket listening at ws://localhost:${PORT}`);
         });
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
     })
     .catch(err => {
         console.error('❌ Database sync failed:', err);

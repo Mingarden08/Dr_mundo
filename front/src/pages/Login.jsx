@@ -11,7 +11,7 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post("https://dr-mundo.onrender.com//dr-mundo/member/login", {
+      const res = await axios.post("https://dr-mundo.onrender.com/dr-mundo/member/login", {
         email,
         passwd,
       });

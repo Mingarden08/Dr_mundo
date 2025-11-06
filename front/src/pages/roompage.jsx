@@ -35,7 +35,7 @@ function RoomPage() {
             const token = JSON.parse(userData).data.token;
             
             // 현재 참가중인 방이 있는지 확인
-            const roomsResponse = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            const roomsResponse = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -48,7 +48,7 @@ function RoomPage() {
                 // 참가중인 방이 있으면 나가기 (첫번째 방에서 나가기)
                 if (rooms.length > 0) {
                     const rNo = rooms[0].roomId;
-                    await fetch(`http://localhost:3000/dr-mundo/game/room/leave/${rNo}`, {
+                    await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/leave/${rNo}`, {
                         method: "DELETE",
                         headers: {
                             "Authorization": `Bearer ${token}`
@@ -69,7 +69,7 @@ function RoomPage() {
 
             const token = JSON.parse(userData).data.token;
             
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -94,7 +94,7 @@ function RoomPage() {
             const userData = localStorage.getItem("user");
             const token = JSON.parse(userData).data.token;
 
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/join/${rNo}`, {
+            const response = await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/join/${rNo}`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -141,7 +141,7 @@ function RoomPage() {
             await leaveCurrentRoom();
 
             // 방 생성
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room/create", {
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room/create", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -12,7 +12,7 @@ function Register() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await axios.post("http://localhost:3000/dr-mundo/member/signup", {
+            const res = await axios.post("https://dr-mundo.onrender.com/dr-mundo/member/signup", {
                 nickName,
                 passwd,
                 email,

@@ -38,7 +38,7 @@ function WaitingRoom() {
 
             const token = JSON.parse(userData).data.token;
             
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -77,7 +77,7 @@ function WaitingRoom() {
             const userData = localStorage.getItem("user");
             const token = JSON.parse(userData).data.token;
 
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/start/${roomId}`, {
+            const response = await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/start/${roomId}`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -101,7 +101,7 @@ function WaitingRoom() {
             const userData = localStorage.getItem("user");
             const token = JSON.parse(userData).data.token;
 
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/leave/${roomId}`, {
+            const response = await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/leave/${roomId}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`

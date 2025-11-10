@@ -5,6 +5,7 @@ import Homepage from "./pages/Homepage";
 import RoomPage from "./pages/roompage";
 import WaitingRoom from "./pages/WaitingRoom";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import GamePage from "./pages/GamePage";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/roompage" element={<RoomPage />} />
         <Route path="/waiting/:roomId" element={<WaitingRoom />} />
+        <Route path="/game/:roomId" element={<GamePage />} />  
       </Routes>
     </BrowserRouter>
   );

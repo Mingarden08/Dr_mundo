@@ -18,15 +18,19 @@ export const useWebSocket = () => useContext(WebSocketContext);
 export const WebSocketProvider = ({ children }) => {
     const ws = useRef(null); 
     const [isConnected, setIsConnected] = useState(false);
+    
+    // 💡 1. gameState 초기 상태 정의 시 cooldowns를 안전하게 초기화합니다.
     const [gameState, setGameState] = useState({ 
         currentPlayers: [],
         playerCount: 0,
-        isGameStarted: false, // 게임 시작 여부
-        // ... 여기에 쿨타임, 맵 상태 등이 GamePage에서 사용될 상태가 추가됩니다.
+        isGameStarted: false,
+        // 🚨 TypeError를 방지하기 위해 빈 객체가 아닌 기본값으로 초기화합니다.
+        cooldowns: { rune: 0, attack: 0, ghost: 0, flash: 0 } 
     });
+    
     const [error, setError] = useState(null); 
 
-    // 1. 메시지 전송 함수 (Context를 사용하는 모든 컴포넌트에서 호출 가능)
+    // 메시지 전송 함수
     const sendMessage = useCallback((data) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify(data));
@@ -36,11 +40,11 @@ export const WebSocketProvider = ({ children }) => {
         return false;
     }, []);
 
-    // 2. 연결 및 초기 메시지 전송 함수 (WaitingRoom에서 호출)
+    // 연결 및 초기 메시지 전송 함수
     const connect = useCallback((token, roomId) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             console.log("WebSocket이 이미 연결되어 있습니다. 바로 방 참가 요청.");
-            sendMessage({ event: 'join', roomId }); // 이미 연결된 경우, 방 참가 메시지만 재전송
+            sendMessage({ event: 'join', roomId });
             return;
         }
 
@@ -52,11 +56,9 @@ export const WebSocketProvider = ({ children }) => {
             setIsConnected(true);
             setError(null);
             
-            // 1. 인증 메시지 전송
             sendMessage({ event: 'auth', token: token });
 
-            // 2. 방 참가 메시지 전송
-            setTimeout(() => { // 서버에서 인증 처리 시간을 벌기 위해 딜레이
+            setTimeout(() => {
                 sendMessage({ event: 'join', roomId: roomId });
             }, 500); 
         };
@@ -67,7 +69,6 @@ export const WebSocketProvider = ({ children }) => {
 
                 switch (data.event) {
                     case 'joined':
-                        // 방 참가 성공 시 플레이어 목록 및 인원 업데이트
                         setGameState(prev => ({ 
                             ...prev, 
                             currentPlayers: data.currentPlayers || [], 
@@ -76,21 +77,36 @@ export const WebSocketProvider = ({ children }) => {
                         break;
                     case 'playerJoined':
                     case 'playerLeft':
-                        // 다른 플레이어의 출입 알림
                         setGameState(prev => ({ 
                             ...prev, 
                             playerCount: data.playerCount,
-                            // TODO: currentPlayers 업데이트 로직도 여기에 필요
                         }));
                         break;
+                    
+                    // 💡 2. 쿨타임 메시지 수신 시 gameState의 cooldowns만 업데이트합니다.
+                    case 'coolTime':
+                        setGameState(prev => ({ 
+                            ...prev, 
+                            cooldowns: {
+                                rune: data.rune || 0,
+                                attack: data.attack || 0,
+                                ghost: data.ghost || 0,
+                                flash: data.flash || 0
+                            }
+                        }));
+                        break;
+                        
                     case 'gameStarted':
-                        // 🚨 방장으로부터 게임 시작 이벤트 수신 시 상태 업데이트
                         setGameState(prev => ({ ...prev, isGameStarted: true })); 
                         break;
                     case 'error':
                         setError(data.message);
                         break;
-                    // ... 기타 게임 상태 업데이트 (GamePage에서 사용)
+                    default:
+                        // 게임 상태 업데이트 (예: 플레이어 위치, HP 등)
+                        if (data.event === 'gameStateUpdate' && data.state) {
+                            setGameState(prev => ({ ...prev, ...data.state }));
+                        }
                 }
             } catch (error) {
                 console.error('메시지 파싱 에러 (Context):', error);
@@ -101,11 +117,11 @@ export const WebSocketProvider = ({ children }) => {
         ws.current.onclose = () => { 
             console.log('🔌 WebSocket 연결 종료');
             setIsConnected(false);
-            setGameState(prev => ({ ...prev, isGameStarted: false })); // 연결 종료 시 게임 상태 초기화
+            setGameState(prev => ({ ...prev, isGameStarted: false }));
         };
     }, [sendMessage]);
 
-    // 3. 연결 해제 함수
+    // 연결 해제 함수
     const disconnect = useCallback(() => {
         if (ws.current) {
             ws.current.close();
@@ -128,6 +144,3 @@ export const WebSocketProvider = ({ children }) => {
         </WebSocketContext.Provider>
     );
 };
-
-// **참고: 이 Provider는 `src/App.js` 또는 라우터를 감싸는 최상위 컴포넌트에 한 번만 적용해야 합니다.**
-// 예: <WebSocketProvider><Router>...</Router></WebSocketProvider>

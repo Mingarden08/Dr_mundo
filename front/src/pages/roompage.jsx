@@ -23,7 +23,7 @@ function RoomPage() {
 
         // 방 목록 가져오기
         fetchRooms();
-        // 페이지 로드 시 기존 방에서 나가기
+        // 페이지 로드 시 기존 방에서 나가기 (추가 안전장치)
         leaveCurrentRoom();
     }, [navigate]);
 
@@ -34,8 +34,8 @@ function RoomPage() {
 
             const token = JSON.parse(userData).data.token;
             
-            // 현재 참가중인 방이 있는지 확인
-            const roomsResponse = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            // 1. 현재 참가중인 방 목록 확인
+            const roomsResponse = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -43,22 +43,31 @@ function RoomPage() {
             
             if (roomsResponse.ok) {
                 const roomsData = await roomsResponse.json();
-                const rooms = roomsData.data?.rooms || [];
+                // 사용자가 현재 참가 중인 방은 API 응답에서 rooms 배열로 올 것이라고 가정합니다.
+                const userRooms = roomsData.data?.rooms || []; 
                 
-                // 참가중인 방이 있으면 나가기 (첫번째 방에서 나가기)
-                if (rooms.length > 0) {
-                    const rNo = rooms[0].roomId;
-                    await fetch(`http://localhost:3000/dr-mundo/game/room/leave/${rNo}`, {
+                // 참가중인 방이 있으면 나가기 (하나의 방만 참가한다고 가정하고 첫번째 방에서 나갑니다)
+                if (userRooms.length > 0) {
+                    const rNo = userRooms[0].roomId;
+                    console.log(`기존 방 #${rNo}에서 나가기 시도...`);
+                    
+                    const leaveResponse = await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/leave/${rNo}`, {
                         method: "DELETE",
                         headers: {
                             "Authorization": `Bearer ${token}`
                         }
                     });
-                    console.log("기존 방에서 나갔습니다.");
+                    
+                    if (leaveResponse.ok) {
+                         console.log(`✅ 기존 방 #${rNo}에서 성공적으로 나갔습니다.`);
+                    } else {
+                         const leaveError = await leaveResponse.json();
+                         console.error(`❌ 방 나가기 실패: ${leaveError.message || '알 수 없는 오류'} (방 #${rNo})`);
+                    }
                 }
             }
         } catch (err) {
-            console.log("기존 방 정보 확인 실패:", err);
+            console.error("기존 방 정보 확인 또는 나가기 실패:", err);
         }
     };
 
@@ -69,7 +78,7 @@ function RoomPage() {
 
             const token = JSON.parse(userData).data.token;
             
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -94,7 +103,7 @@ function RoomPage() {
             const userData = localStorage.getItem("user");
             const token = JSON.parse(userData).data.token;
 
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/join/${rNo}`, {
+            const response = await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/join/${rNo}`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -137,11 +146,15 @@ function RoomPage() {
                 return;
             }
 
-            // 기존 방에서 나가기
+            // 1. 기존 방에서 나가기
             await leaveCurrentRoom();
 
-            // 방 생성
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room/create", {
+            // ⭐ 2. 서버 상태 동기화를 위해 잠시 대기 (0.5초)
+            console.log("서버 상태 동기화를 위해 500ms 대기...");
+            await new Promise(resolve => setTimeout(resolve, 500)); 
+            
+            // 3. 방 생성 시도
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room/create", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -154,17 +167,18 @@ function RoomPage() {
     
             if (response.ok) {
                 const data = await response.json();
-                console.log("방 생성 성공:", data);
+                console.log("✅ 방 생성 성공:", data);
                 const roomId = data.data.roomId;
                 setShowModal(false);
                 setRoomName("");
                 navigate(`/waiting/${roomId}`);
             } else {
                 const errorData = await response.json();
-                alert(errorData.message || "방 생성에 실패했습니다.");
+                console.error("❌ 방 생성 실패 응답:", errorData);
+                alert(`방 생성에 실패했습니다: ${errorData.message || "알 수 없는 오류"}`);
             }
         } catch (error) {
-            console.error("방 생성 오류:", error);
+            console.error("최종 방 생성 처리 오류:", error);
             alert("방 생성 중 오류가 발생했습니다.");
         }
     };
@@ -173,6 +187,10 @@ function RoomPage() {
         <div className="room-container">
             <div className="content-wrapper">
                 <img src={logo} alt="logo" />
+                {/* 현재 사용자 이메일 표시 (디버깅용) */}
+                {user && user.data.email && (
+                    <div className="user-info">접속 중: {user.data.email}</div>
+                )}
                 <button className="logout-button" onClick={handleLogout}>
                     로그아웃
                 </button>
@@ -187,7 +205,7 @@ function RoomPage() {
                         rooms.map((room) => (
                             <div key={room.roomId} className="room-item" onClick={() => handleJoinRoom(room.roomId)}>
                                 <div className="room-item-header">
-                                    <h3>방 #{room.roomId}</h3>
+                                    <h3>{room.roomName || `방 #${room.roomId}`}</h3>
                                     <span className="room-status-badge">
                                         {room.playerCnt}/2
                                     </span>

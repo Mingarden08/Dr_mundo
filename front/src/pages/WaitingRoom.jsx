@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./WaitingRoom.css";
 
@@ -8,7 +8,9 @@ function WaitingRoom() {
     const [playerCount, setPlayerCount] = useState(1);
     const [isHost, setIsHost] = useState(true);
     const [currentUser, setCurrentUser] = useState(null);
+    const [players, setPlayers] = useState([]); // 플레이어 목록
     const navigate = useNavigate();
+    const wsRef = useRef(null);
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
@@ -20,6 +22,9 @@ function WaitingRoom() {
         const parsedUser = JSON.parse(userData);
         setCurrentUser(parsedUser);
 
+        // WebSocket 연결
+        connectWebSocket(parsedUser);
+
         // 방 정보 주기적으로 업데이트 (3초마다)
         const interval = setInterval(() => {
             fetchRoomInfo();
@@ -28,8 +33,100 @@ function WaitingRoom() {
         // 처음 한 번 실행
         fetchRoomInfo();
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            // WebSocket 연결 해제
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+        };
     }, [roomId, navigate]);
+
+    const connectWebSocket = (user) => {
+        // WebSocket URL (환경에 따라 자동 설정)
+        const WS_URL = window.location.protocol === 'https:' 
+            ? 'wss://dr-mundo.onrender.com'
+            : 'ws://localhost:3000';
+
+        const ws = new WebSocket(WS_URL);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+            console.log('✅ WebSocket 연결 성공');
+            
+            // 인증
+            ws.send(JSON.stringify({
+                event: 'auth',
+                token: user.data.token
+            }));
+
+            // 방 참가
+            setTimeout(() => {
+                ws.send(JSON.stringify({
+                    event: 'join',
+                    roomId: roomId
+                }));
+            }, 500);
+        };
+
+        ws.onmessage = (message) => {
+            try {
+                const data = JSON.parse(message.data);
+                console.log('📩 WebSocket 메시지:', data);
+
+                switch (data.event) {
+                    case 'auth':
+                        if (data.success) {
+                            console.log('✅ 인증 성공');
+                        }
+                        break;
+
+                    case 'joined':
+                        console.log('✅ 방 참가 성공');
+                        if (data.currentPlayers) {
+                            setPlayers(data.currentPlayers);
+                            setPlayerCount(data.currentPlayers.length);
+                        }
+                        break;
+
+                    case 'playerJoined':
+                        console.log('👥 새 플레이어 참가:', data.userId);
+                        setPlayerCount(data.playerCount);
+                        break;
+
+                    case 'playerLeft':
+                        console.log('👋 플레이어 퇴장:', data.userId);
+                        setPlayerCount(data.playerCount);
+                        break;
+
+                    case 'gameStarted':
+                        // ✅ 방장이 게임을 시작하면 모든 플레이어가 게임 페이지로 이동
+                        console.log('🎮 게임 시작!');
+                        alert('게임이 시작됩니다!');
+                        navigate(`/game/${roomId}`);
+                        break;
+
+                    case 'error':
+                        console.error('❌ 에러:', data.message);
+                        alert(data.message);
+                        break;
+
+                    default:
+                        console.log('알 수 없는 이벤트:', data.event);
+                }
+            } catch (error) {
+                console.error('메시지 파싱 에러:', error);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('❌ WebSocket 에러:', error);
+        };
+
+        ws.onclose = () => {
+            console.log('🔌 WebSocket 연결 종료');
+        };
+    };
 
     const fetchRoomInfo = async () => {
         try {
@@ -38,7 +135,7 @@ function WaitingRoom() {
 
             const token = JSON.parse(userData).data.token;
             
-            const response = await fetch("http://localhost:3000/dr-mundo/game/room", {
+            const response = await fetch("https://dr-mundo.onrender.com/dr-mundo/game/room", {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -53,7 +150,6 @@ function WaitingRoom() {
                     setPlayerCount(currentRoom.playerCnt);
                     console.log(`방 #${roomId} 현재 인원: ${currentRoom.playerCnt}/2`);
                 } else {
-                    // 방이 목록에 없으면 게임이 시작되었거나 삭제됨
                     console.log("방을 찾을 수 없습니다.");
                 }
             }
@@ -74,21 +170,14 @@ function WaitingRoom() {
         }
 
         try {
-            const userData = localStorage.getItem("user");
-            const token = JSON.parse(userData).data.token;
-
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/start/${roomId}`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                alert("게임이 시작됩니다!");
-                navigate(`/game/${roomId}`);
+            // ✅ WebSocket으로 게임 시작 요청
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    event: 'start',
+                    roomId: roomId
+                }));
             } else {
-                alert("게임 시작에 실패했습니다.");
+                alert("WebSocket 연결이 끊겼습니다. 새로고침 해주세요.");
             }
         } catch (error) {
             console.error("게임 시작 오류:", error);
@@ -98,19 +187,24 @@ function WaitingRoom() {
 
     const handleLeaveRoom = async () => {
         try {
+            // WebSocket으로 방 나가기 알림
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                wsRef.current.send(JSON.stringify({
+                    event: 'leave',
+                    roomId: roomId
+                }));
+            }
+
+            // API로도 방 나가기 (DB 업데이트용)
             const userData = localStorage.getItem("user");
             const token = JSON.parse(userData).data.token;
 
-            const response = await fetch(`http://localhost:3000/dr-mundo/game/room/leave/${roomId}`, {
+            await fetch(`https://dr-mundo.onrender.com/dr-mundo/game/room/leave/${roomId}`, {
                 method: "DELETE",
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
             });
-
-            if (response.ok) {
-                console.log("방에서 나갔습니다.");
-            }
 
             navigate("/roompage");
         } catch (error) {

@@ -1,14 +1,13 @@
-// back/src/services/gameService.js (수정된 파일)
-
 const { Room, RoomParticipant, GameRecord, Member, sequelize } = require("../models");
 const { Op } = require("sequelize");
 
 // =====================================
-// ✅ 게임 시작 (startGame) 함수 수정 (Managed Transaction)
+// ✅ 게임 시작 (startGame) 함수 추가
 // =====================================
 exports.startGame = async (roomId, memberId) => {
-    // 💡 sequelize.transaction(async (t) => ...)을 사용하여 자동 commit/rollback 처리
-    return await sequelize.transaction(async (t) => {
+    const t = await sequelize.transaction();
+
+    try {
         // 1. 방 조회 및 잠금
         const room = await Room.findByPk(roomId, {
             lock: true,
@@ -16,56 +15,76 @@ exports.startGame = async (roomId, memberId) => {
         });
 
         if (!room) {
-            // Managed Transaction에서는 throw만 하면 자동으로 rollback됩니다.
+            await t.rollback();
             throw new Error("방을 찾을 수 없습니다.");
         }
 
         // 2. 방장 권한 확인
         if (room.hostId !== memberId) {
+            await t.rollback();
             throw new Error("방장만 게임을 시작할 수 있습니다.");
         }
-
+        
         // 3. 상태 확인 (이미 시작되었는지)
         if (room.status !== 'waiting') {
+            await t.rollback();
             throw new Error("이미 게임이 시작되었습니다.");
         }
 
         // 4. 플레이어 수 확인 (2명 필요)
         if (room.playerCount !== 2) {
+            await t.rollback();
             throw new Error("플레이어가 2명이 아닙니다.");
         }
 
         // 5. 방 상태를 'playing'으로 업데이트
         await room.update({ status: 'playing' }, { transaction: t });
 
-        // 이 블록이 성공적으로 완료되면 Sequelize가 자동으로 t.commit()을 호출합니다.
+        await t.commit();
         return { success: true };
-    }); // try...catch 블록과 수동 rollback 코드를 제거했습니다.
+
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
 };
 
 // =====================================
-// 기존 함수들 (createRoom, getRoomList, getRanking, getGameRecord는 유지)
+// 기존 함수들
 // =====================================
 
-// 방 만들기 (트랜잭션 미사용 코드로 유지)
+// 방 만들기
 exports.createRoom = async (roomName, hostId) => {
-    // ... (기존 코드 유지)
-    // 💡 NOTE: 이 함수에도 트랜잭션을 적용하여 원자성을 확보하는 것이 안전합니다.
-    // 💡 하지만 현재는 DB 오류만 해결하므로 기존 방식을 유지합니다.
+    // 1. 이미 참가중인 방이 있는지 확인
     const existingParticipation = await RoomParticipant.findOne({
-        // ... (생략)
+        where: { memberId: hostId },
+        include: [{
+            model: Room,
+            as: 'room',
+            where: { 
+                status: { 
+                    [Op.in]: ['waiting', 'playing'] 
+                } 
+            }
+        }]
     });
 
     if (existingParticipation) {
         throw new Error("이미 참가중인 방이 있습니다.");
     }
 
+    // 2. 방 생성
     const room = await Room.create({
-        // ... (생략)
+        roomName: roomName,
+        hostId: hostId,
+        playerCount: 1,
+        status: 'waiting'
     });
 
+    // 3. 방장을 Room_Participant에 추가
     await RoomParticipant.create({
-        // ... (생략)
+        roomId: room.id,
+        memberId: hostId
     });
 
     return {
@@ -74,16 +93,26 @@ exports.createRoom = async (roomName, hostId) => {
     };
 };
 
-// 방 목록 보기 (유지)
+// 방 목록 보기
 exports.getRoomList = async () => {
-    // ... (기존 코드 유지)
+    const rooms = await Room.findAll({
+        where: { status: 'waiting' },
+        attributes: ['id', 'playerCount'],
+        order: [['createdAt', 'DESC']]
+    });
+
+    return rooms.map(room => ({
+        roomId: room.id,
+        playerCnt: room.playerCount
+    }));
 };
 
-// =====================================
-// ✅ 방 참가 (joinRoom) 함수 수정 (Managed Transaction)
-// =====================================
+// 방 참가
 exports.joinRoom = async (roomId, memberId) => {
-    return await sequelize.transaction(async (t) => {
+    // 트랜잭션 시작
+    const t = await sequelize.transaction();
+
+    try {
         // 1. 방 조회 및 잠금
         const room = await Room.findByPk(roomId, {
             lock: true,
@@ -91,17 +120,22 @@ exports.joinRoom = async (roomId, memberId) => {
         });
 
         if (!room) {
+            await t.rollback();
             throw new Error("방을 찾을 수 없습니다.");
         }
 
         if (room.status !== 'waiting') {
+            await t.rollback();
             throw new Error("이미 진행 중인 방입니다.");
         }
-
-        if (room.playerCount >= 2) {
+        
+        // NOTE: room.maxCount 필드가 모델에 정의되어 있다고 가정했습니다.
+        // 현재 코드에서는 room.maxCount가 없으므로 2명 제한으로 가정합니다. (playerCount >= 2로 변경)
+        if (room.playerCount >= 2) { 
+            await t.rollback();
             throw new Error("방이 꽉 찼습니다.");
         }
-
+        
         // 2. 이미 참가했는지 확인
         const existing = await RoomParticipant.findOne({
             where: { roomId: roomId, memberId: memberId },
@@ -109,9 +143,10 @@ exports.joinRoom = async (roomId, memberId) => {
         });
 
         if (existing) {
+            await t.rollback();
             throw new Error("이미 참가한 방입니다.");
         }
-
+        
         // 3. 참가자 추가
         await RoomParticipant.create({
             roomId: roomId,
@@ -121,15 +156,20 @@ exports.joinRoom = async (roomId, memberId) => {
         // 4. playerCount 증가
         await room.increment('playerCount', { transaction: t });
 
+        await t.commit();
         return { success: true };
-    });
+
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
 };
 
-// =====================================
-// ✅ 게임 결과 저장 (saveGameResult) 함수 수정 (Managed Transaction)
-// =====================================
+// 게임 결과 저장
 exports.saveGameResult = async (roomId, winnerId) => {
-    return await sequelize.transaction(async (t) => {
+    const t = await sequelize.transaction();
+
+    try {
         // 1. 방의 참가자 확인
         const participants = await RoomParticipant.findAll({
             where: { roomId: roomId },
@@ -137,12 +177,14 @@ exports.saveGameResult = async (roomId, winnerId) => {
         });
 
         if (participants.length !== 2) {
+            await t.rollback();
             throw new Error("참가자가 2명이 아닙니다.");
         }
 
         // 2. 패자 찾기
         const loserId = participants.find(p => p.memberId !== winnerId)?.memberId;
         if (!loserId) {
+            await t.rollback();
             throw new Error("패자를 찾을 수 없습니다.");
         }
 
@@ -162,20 +204,92 @@ exports.saveGameResult = async (roomId, winnerId) => {
             { status: 'finished' },
             { where: { id: roomId }, transaction: t }
         );
-
+        
+        await t.commit();
         return { success: true };
-    });
+
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
 };
 
+// 전적 보기
+exports.getGameRecord = async (memberId) => {
+    // 1. 게임 기록 조회
+    const records = await GameRecord.findAll({
+        where: {
+            [Op.or]: [
+                { winnerId: memberId },
+                { loserId: memberId }
+            ]
+        },
+        include: [
+            {
+                model: Member,
+                as: 'winner',
+                attributes: ['nickName']
+            },
+            {
+                model: Member,
+                as: 'loser',
+                attributes: ['nickName']
+            }
+        ],
+        order: [['playedAt', 'DESC']]
+    });
 
-// =====================================
-// ✅ 방 나가기 (leaveRoom) 함수 수정 (Managed Transaction)
-// =====================================
+    // 2. 게임 결과 변환
+    const games = records.map(record => {
+        const isWin = record.winnerId === memberId;
+        const enemy = isWin ? record.loser.nickName : record.winner.nickName;
+
+        return {
+            win: isWin,
+            enemy: enemy
+        };
+    });
+
+    // 3. 랭킹 계산
+    const member = await Member.findByPk(memberId);
+    const rank = await Member.count({
+        where: {
+            totalWins: {
+                [Op.gt]: member.totalWins
+            }
+        }
+    }) + 1;
+
+    return {
+        games,
+        rank
+    };
+};
+
+// 랭킹 보기
+exports.getRanking = async () => {
+    const rankings = await Member.findAll({
+        attributes: ['nickName', 'totalWins'],
+        order: [['totalWins', 'DESC']],
+        limit: 100
+    });
+
+    // NOTE: 승률(winRate)이 아니라 승리 횟수(totalWins)를 사용하고 있습니다. 필드 이름을 일관성 있게 사용하거나 모델에서 승률을 계산해야 합니다.
+    return rankings.map(member => ({
+        player: member.nickName,
+        winRate: member.totalWins // 현재는 승리 횟수
+    }));
+};
+
+// 방 나가기
 exports.leaveRoom = async (roomId, memberId) => {
-    return await sequelize.transaction(async (t) => {
+    const t = await sequelize.transaction();
+
+    try {
         // 1. 방 조회
         const room = await Room.findByPk(roomId, { transaction: t });
         if (!room) {
+            await t.rollback();
             throw new Error("방을 찾을 수 없습니다.");
         }
 
@@ -186,11 +300,13 @@ exports.leaveRoom = async (roomId, memberId) => {
         });
 
         if (!participant) {
+            await t.rollback();
             throw new Error("방에 참가하고 있지 않습니다.");
         }
 
         // 3. 게임 진행 중이면 나갈 수 없음
         if (room.status === 'playing') {
+            await t.rollback();
             throw new Error("게임 진행 중에는 나갈 수 없습니다.");
         }
 
@@ -198,38 +314,43 @@ exports.leaveRoom = async (roomId, memberId) => {
         await participant.destroy({ transaction: t });
 
         // 5. playerCount 감소
-        // 💡 NOTE: room.decrement를 호출하기 전에 room.playerCount가 0 이상인지 확인하는 것이 좋습니다.
         await room.decrement('playerCount', { transaction: t });
 
         // 6. 방에 아무도 없으면 방 삭제
-        // (decrement가 적용된 후의 room.playerCount 값을 바로 참조하면 안 됩니다.
-        // 하지만 다음 요청을 위해 단순화된 로직을 유지하고, 클린업이 목표이므로 room.playerCount <= 1를 사용합니다.)
-        if (room.playerCount <= 1) { // 1명이었을 경우, 감소 후 0이 되므로 방 삭제
+        if (room.playerCount <= 1) {
             await room.destroy({ transaction: t });
         }
-
+        
+        await t.commit();
         return { success: true };
-    });
+
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
 };
 
-// =====================================
-// ✅ 방 삭제 (deleteRoom) 함수 수정 (Managed Transaction)
-// =====================================
+// 방 삭제 (방장만 가능)
 exports.deleteRoom = async (roomId, memberId) => {
-    return await sequelize.transaction(async (t) => {
+    const t = await sequelize.transaction();
+
+    try {
         // 1. 방 조회
         const room = await Room.findByPk(roomId, { transaction: t });
         if (!room) {
+            await t.rollback();
             throw new Error("방을 찾을 수 없습니다.");
         }
 
         // 2. 방장 권한 확인
         if (room.hostId !== memberId) {
+            await t.rollback();
             throw new Error("방장만 방을 삭제할 수 있습니다.");
         }
 
         // 3. 게임 진행 중이면 삭제 불가
         if (room.status === 'playing') {
+            await t.rollback();
             throw new Error("게임 진행 중에는 방을 삭제할 수 없습니다.");
         }
 
@@ -242,11 +363,11 @@ exports.deleteRoom = async (roomId, memberId) => {
         // 5. 방 삭제
         await room.destroy({ transaction: t });
 
+        await t.commit();
         return { success: true };
-    });
-};
 
-// 전적 보기 (유지)
-exports.getGameRecord = async (memberId) => {
-    // ... (기존 코드 유지)
+    } catch (err) {
+        await t.rollback();
+        throw err;
+    }
 };

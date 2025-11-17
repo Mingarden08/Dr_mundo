@@ -19,10 +19,14 @@ function RoomPage() {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
 
-        fetchRooms(parsedUser.data.token);
+        // 로그인 직후 바로 토큰 사용
+        const token = parsedUser.data?.token || parsedUser.token;
+        if (!token) return console.error("토큰 정보 없음");
+        fetchRooms(token);
     }, [navigate]);
 
     const fetchRooms = async (token) => {
+        if (!token) return;
         try {
             const response = await fetch(`${BASE_URL}/room`, {
                 headers: { "Authorization": `Bearer ${token}` }
@@ -38,14 +42,16 @@ function RoomPage() {
 
     const handleCreateRoom = async () => {
         if (!roomName.trim()) return alert("방 이름을 입력해주세요.");
-        if (!user?.data?.token) return alert("로그인 정보가 없습니다.");
+        if (!user?.data?.token && !user?.token) return alert("로그인 정보가 없습니다.");
+
+        const token = user.data?.token || user.token;
 
         try {
             const response = await fetch(`${BASE_URL}/room/create`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${user.data.token}`
+                    "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({ roomName }),
             });
@@ -62,10 +68,10 @@ function RoomPage() {
     };
 
     const handleJoinRoom = async (roomId) => {
-        if (!user?.data?.token) return alert("로그인 정보가 없습니다.");
-        try {
-            const token = user.data.token;
+        if (!user?.data?.token && !user?.token) return alert("로그인 정보가 없습니다.");
+        const token = user.data?.token || user.token;
 
+        try {
             // 1️⃣ 방 정보 확인
             const roomRes = await fetch(`${BASE_URL}/room/${roomId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
@@ -101,7 +107,7 @@ function RoomPage() {
         <div className="room-container">
             <div className="content-wrapper">
                 <img src={logo} alt="logo" />
-                <div className="user-info">접속 중: {user?.data?.email}</div>
+                <div className="user-info">접속 중: {user?.data?.email || user?.email}</div>
                 <button onClick={handleLogout}>로그아웃</button>
             </div>
 
@@ -125,7 +131,7 @@ function RoomPage() {
 
             <div className="room-event">
                 <button onClick={() => setShowModal(true)}>방 만들기</button>
-                <button onClick={() => fetchRooms(user?.data?.token)}>새로고침</button>
+                <button onClick={() => fetchRooms(user.data?.token || user.token)}>새로고침</button>
             </div>
 
             {showModal && (

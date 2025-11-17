@@ -13,25 +13,6 @@ const { authMiddleware } = require("../middlewares/auth");
  * @swagger
 
  * /dr-mundo/game/room/create:
-<<<<<<< HEAD
-
- *   post:
-
- *     summary: 게임 방 생성
-
- *     tags: [Game]
-
- *     security:
-
- *       - bearerAuth: []
-
- *     responses:
-
- *       200:
-
- *         description: 방 생성 성공
-
-=======
  *   post:
  *     summary: 방 만들기
  *     tags: [Game]
@@ -72,7 +53,6 @@ const { authMiddleware } = require("../middlewares/auth");
  *                     roomId:
  *                       type: integer
  *                       example: 1
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.post("/dr-mundo/game/room/create", authMiddleware, gameCtrl.createRoom);
@@ -82,74 +62,6 @@ router.post("/dr-mundo/game/room/create", authMiddleware, gameCtrl.createRoom);
 /**
 
  * @swagger
-<<<<<<< HEAD
-
- * /dr-mundo/game/room/list:
-
- *   get:
-
- *     summary: 대기 중인 방 목록 조회
-
- *     tags: [Game]
-
- *     responses:
-
- *       200:
-
- *         description: 방 목록 반환
-
- *         content:
-
- *           application/json:
-
- *             schema:
-
- *               type: object
-
- *               properties:
-
- *                 code:
-
- *                   type: integer
-
- *                 message:
-
- *                   type: string
-
- *                 data:
-
- *                   type: object
-
- *                   properties:
-
- *                     rooms:
-
- *                       type: array
-
- *                       items:
-
- *                         type: object
-
- *                         properties:
-
- *                           roomId:
-
- *                             type: integer
-
- *                             example: 3
-
- *                           playerCnt:
-
- *                             type: integer
-
- *                             example: 2
-
- */
-
-router.get("/dr-mundo/game/room/list", gameCtrl.getRoomList);
-
-
-=======
  * /dr-mundo/game/room/start/{rNo}:
  *   post:
  *     summary: 게임 시작
@@ -186,46 +98,10 @@ router.get("/dr-mundo/game/room/list", gameCtrl.getRoomList);
  *                       example: true
  */
 router.post('/dr-mundo/game/room/start/:rNo', authMiddleware, gameCtrl.startGame);
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 
 /**
 
  * @swagger
-<<<<<<< HEAD
-
- * /dr-mundo/game/room/{rNo}/join:
-
- *   post:
-
- *     summary: 방 참가
-
- *     tags: [Game]
-
- *     security:
-
- *       - bearerAuth: []
-
- *     parameters:
-
- *       - in: path
-
- *         name: rNo
-
- *         required: true
-
- *         schema:
-
- *           type: integer
-
- *         description: 방 번호
-
- *     responses:
-
- *       200:
-
- *         description: 참가 성공
-
-=======
  * /dr-mundo/game/room:
  *   get:
  *     summary: 방 목록 조회
@@ -260,7 +136,6 @@ router.post('/dr-mundo/game/room/start/:rNo', authMiddleware, gameCtrl.startGame
  *                           roomId:
  *                             type: integer
  *                             example: 1
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.post("/dr-mundo/game/room/:rNo/join", authMiddleware, gameCtrl.joinRoom);
@@ -270,41 +145,6 @@ router.post("/dr-mundo/game/room/:rNo/join", authMiddleware, gameCtrl.joinRoom);
 /**
 
  * @swagger
-<<<<<<< HEAD
-
- * /dr-mundo/game/room/{rNo}/start:
-
- *   post:
-
- *     summary: 게임 시작
-
- *     tags: [Game]
-
- *     security:
-
- *       - bearerAuth: []
-
- *     parameters:
-
- *       - in: path
-
- *         name: rNo
-
- *         required: true
-
- *         schema:
-
- *           type: integer
-
- *         description: 방 번호
-
- *     responses:
-
- *       200:
-
- *         description: 게임 시작 성공
-
-=======
  * /dr-mundo/game/room/join/{rNo}:
  *   post:
  *     summary: 방 참가
@@ -338,7 +178,6 @@ router.post("/dr-mundo/game/room/:rNo/join", authMiddleware, gameCtrl.joinRoom);
  *                     success:
  *                       type: boolean
  *                       example: true
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.post("/dr-mundo/game/room/start/:rNo", authMiddleware, gameCtrl.startGame);
@@ -348,41 +187,6 @@ router.post("/dr-mundo/game/room/start/:rNo", authMiddleware, gameCtrl.startGame
 /**
 
  * @swagger
-<<<<<<< HEAD
-
- * /dr-mundo/game/room/{rNo}/leave:
-
- *   delete:
-
- *     summary: 방 나가기
-
- *     tags: [Game]
-
- *     security:
-
- *       - bearerAuth: []
-
- *     parameters:
-
- *       - in: path
-
- *         name: rNo
-
- *         required: true
-
- *         schema:
-
- *           type: integer
-
- *         description: 방 번호
-
- *     responses:
-
- *       200:
-
- *         description: 성공적으로 방을 나감
-
-=======
  * /dr-mundo/game/result/{rNo}:
  *   post:
  *     summary: 게임 결과 저장
@@ -428,7 +232,6 @@ router.post("/dr-mundo/game/room/start/:rNo", authMiddleware, gameCtrl.startGame
  *                     success:
  *                       type: boolean
  *                       example: true
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.delete("/dr-mundo/game/room/:rNo/leave", authMiddleware, gameCtrl.leaveRoom);
@@ -544,25 +347,6 @@ router.post("/dr-mundo/game/:rNo/result", authMiddleware, gameCtrl.saveGameResul
  * @swagger
 
  * /dr-mundo/game/record:
-<<<<<<< HEAD
-
- *   get:
-
- *     summary: 전적 조회
-
- *     tags: [Game]
-
- *     security:
-
- *       - bearerAuth: []
-
- *     responses:
-
- *       200:
-
- *         description: 사용자 전적 반환
-
-=======
  *   get:
  *     summary: 전적 조회
  *     tags: [Game]
@@ -599,7 +383,6 @@ router.post("/dr-mundo/game/:rNo/result", authMiddleware, gameCtrl.saveGameResul
  *                           rank:
  *                             type: integer
  *                             example: 1
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.get("/dr-mundo/game/record", authMiddleware, gameCtrl.getGameRecord);
@@ -607,8 +390,6 @@ router.get("/dr-mundo/game/record", authMiddleware, gameCtrl.getGameRecord);
 
 
 /**
-<<<<<<< HEAD
-=======
  * @swagger
  * /dr-mundo/game/rank:
  *   get:
@@ -646,26 +427,9 @@ router.get("/dr-mundo/game/record", authMiddleware, gameCtrl.getGameRecord);
  *                             example: "nickName"
  */
 router.get('/dr-mundo/game/rank', authMiddleware, gameCtrl.getRanking);
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 
+/**
  * @swagger
-<<<<<<< HEAD
-
- * /dr-mundo/game/ranking:
-
- *   get:
-
- *     summary: 전체 랭킹 조회
-
- *     tags: [Game]
-
- *     responses:
-
- *       200:
-
- *         description: 랭킹 목록 반환
-
-=======
  * /dr-mundo/game/room/leave/{rNo}:
  *   delete:
  *     summary: 방 나가기
@@ -737,7 +501,6 @@ router.delete('/dr-mundo/game/room/leave/:rNo', authMiddleware, gameCtrl.leaveRo
  *                     success:
  *                       type: boolean
  *                       example: true
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
  */
 
 router.get("/dr-mundo/game/ranking", gameCtrl.getRanking);

@@ -8,6 +8,7 @@ const morgan = require('morgan');
 // 라우터 모듈
 const memberRoutes = require('./routes/memberRoutes');
 const gameRouter = require('./routes/gameRoutes'); // gameRoutes로 분리
+// 참고: 'authMiddleware'와 'gameCtrl'은 외부에서 import/require 되어 있다고 가정합니다.
 
 // Swagger
 const swaggerUi = require('swagger-ui-express');
@@ -34,7 +35,6 @@ app.use('/', gameRouter);
 // ✅ React build 폴더 서빙
 app.use(express.static(path.join(__dirname, '../../front/build')));
 
-<<<<<<< HEAD
 /**
  * @swagger
  * /dr-mundo/game/room/create:
@@ -263,11 +263,10 @@ gameRouter.get("/dr-mundo/game/ranking", gameCtrl.getRanking);
 // 라우팅 인식 테스트용 라우트
 gameRouter.get('/dr-mundo/test-start', (req, res) => {
     res.status(200).json({ status: 'Route Working', route: '/dr-mundo/test-start' });
-=======
+}); // <-- 누락된 닫는 괄호 및 세미콜론 추가
 // ✅ SPA 라우팅 처리 (React Router 지원)
 app.get(/^(?!\/api|\/dr-mundo).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, '../../front/build', 'index.html'));
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
 });
 
 // ✅ Swagger 문서

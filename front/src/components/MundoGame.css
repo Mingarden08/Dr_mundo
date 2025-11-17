@@ -1,0 +1,83 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #000;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+}
+
+#gameCanvas {
+    position: absolute;
+    /* 캔버스 자체는 지정된 픽셀 크기로 유지하되, 화면에 맞추어 확대/축소됩니다. */
+    width: 100%; 
+    height: 100%;
+    max-width: 1000px; /* MAP_WIDTH */
+    max-height: 563px; /* MAP_HEIGHT */
+    object-fit: contain; /* 캔버스의 비율 유지 */
+    top: 0;
+    left: 0;
+    display: block;
+    z-index: 1;
+}
+
+/* HUD 스타일: 쿨타임과 상태 정보가 표시될 영역 */
+#game-hud {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 1000px; /* 캔버스 크기에 맞춤 */
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+}
+
+/* 상태 및 쿨타임 섹션 스타일 */
+.hud-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.cooldown-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 5px 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    flex-grow: 1;
+    margin: 0 5px;
+}
+
+.cooldown-item:first-child { margin-left: 0; }
+.cooldown-item:last-child { margin-right: 0; }
+
+.cooldown-key {
+    font-weight: bold;
+    color: yellowgreen;
+}
+
+.cooldown-time {
+    font-size: 1.2em;
+    color: orange;
+}
+
+#game-status {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: lightskyblue;
+}   

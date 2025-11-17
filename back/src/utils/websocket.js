@@ -297,7 +297,7 @@ function initWebSocket(server) {
 
     // 주기적 쿨타임 브로드캐스트 및 위치 업데이트
     setInterval(() => {
-        gameStates.forEach((gameState, roomId) => {
+        gameStates.forEach((gameState) => {
             if (gameState.status !== 'playing') return;
             
             const now = Date.now();
@@ -334,12 +334,10 @@ function initWebSocket(server) {
             updateProjectiles(gameState);
         });
     }, 50); // 20fps로 업데이트
-
     // 웹소켓 연결 핸들러 -------------------------------------------------------
-    
-    wss.on('connection', (ws, req) => {
-        let userId = null; 
 
+    wss.on('connection', (ws, req) => {
+        // ws.userId와 ws.roomId는 연결 시점에 null로 시작
         ws.userId = null; 
         ws.roomId = null;
 
@@ -385,12 +383,36 @@ function initWebSocket(server) {
             }
         });
 
-        ws.on('close', () => {
+        ws.on('close', async () => {
+            // 연결 끊김 처리
             if (ws.userId && ws.roomId) {
-                handleDisconnect(ws.userId, ws.roomId);
+                await handleDisconnect(ws.userId, ws.roomId); // handleDisconnect는 정의되지 않았으므로 아래 handleLeave 로직을 대체함
             }
             if (ws.userId) {
                 playerSockets.delete(ws.userId);
+            }
+            
+            // 연결 끊김 시 방 나가기 로직을 handleDisconnect 대신 직접 처리
+            if (ws.roomId && ws.userId) {
+                const roomId = ws.roomId;
+                const gameState = gameStates.get(roomId);
+                
+                if (gameState) {
+                    gameState.removePlayer(ws.userId);
+
+                    if (gameState.players.size === 0) {
+                        gameStates.delete(roomId);
+                        // DB 방 삭제 로직은 handleLeave에 맡김 (선택 사항)
+                    } else {
+                        // 다른 플레이어들에게 알림
+                        gameState.broadcastToAll({
+                            event: 'playerLeft',
+                            userId: ws.userId,
+                            playerCount: gameState.players.size
+                        });
+                    }
+                }
+                ws.roomId = null;
             }
         });
 
@@ -408,136 +430,309 @@ function initWebSocket(server) {
                 return;
             }
 
-            userId = decoded.id;
-            ws.userId = userId; 
-            playerSockets.set(userId, ws);
+            ws.userId = decoded.id; // ws.userId에 할당
+            playerSockets.set(ws.userId, ws);
 
             ws.send(JSON.stringify({ 
                 event: 'auth', 
                 success: true, 
-                playerId: userId 
+                playerId: ws.userId 
             })); 
         }
 
-        // 방 참가
+        // 방 참가 
         async function handleJoin(data) {
             const { roomId } = data;
-            if (!ws.userId) return ws.send(JSON.stringify({ event: 'join', success: false, message: '인증되지 않은 사용자입니다.' }));
-
-            const room = await Room.findByPk(roomId);
-            if (!room) {
-                return ws.send(JSON.stringify({ event: 'join', success: false, message: '방을 찾을 수 없습니다.' }));
-            }
-
-            if (!gameStates.has(roomId)) {
-                gameStates.set(roomId, new GameState(roomId));
-            }
-
-            const gameState = gameStates.get(roomId);
+            const userId = ws.userId;
             
-            // 2명 게임 제한
-            if (gameState.players.size >= 2) {
-                return ws.send(JSON.stringify({ event: 'join', success: false, message: '방이 가득 찼습니다.' }));
-            }
-            // 이미 다른 방에 참여 중이라면
-            if (ws.roomId && ws.roomId !== roomId) {
-                 return ws.send(JSON.stringify({ event: 'join', success: false, message: '이미 다른 방에 참여 중입니다.' }));
-            }
-            if (gameState.getPlayer(ws.userId)) {
-                 return ws.send(JSON.stringify({ event: 'join', success: false, message: '이미 방에 참여했습니다.' }));
+            if (!userId) {
+                return ws.send(JSON.stringify({ event: 'join', success: false, message: '인증되지 않은 사용자입니다.' }));
             }
 
-            // 플레이어 추가 및 초기 위치 설정 적용
-            const newPlayerState = gameState.addPlayer(ws.userId, ws);
-            ws.roomId = roomId; 
+            try {
+                // 1. DB에서 방 정보 확인
+                const room = await Room.findByPk(roomId);
+                if (!room) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'join', 
+                        success: false, 
+                        message: '방을 찾을 수 없습니다.' 
+                    }));
+                }
 
-            // 자신에게 현재 방 상태 및 자신의 초기 위치 전송
-            const allPlayersData = Array.from(gameState.players.entries()).map(([id, state]) => ({
-                userId: id,
-                x: state.x,
-                y: state.y,
-                hp: state.hp,
-            }));
-            
-            ws.send(JSON.stringify({ 
-                event: 'joined', 
-                success: true,
-                currentPlayers: allPlayersData, 
-            }));
-            
-            // 다른 플레이어들에게 새 플레이어 참가 알림
-            gameState.broadcastToRoom({
-                event: 'playerJoined',
-                userId: ws.userId,
-                x: newPlayerState.x, 
-                y: newPlayerState.y,
-                hp: newPlayerState.hp,
-                playerCount: gameState.players.size
-            }, ws.userId);
+                // 2. 게임이 이미 진행 중인지 확인
+                if (room.status === 'playing') {
+                    return ws.send(JSON.stringify({ 
+                        event: 'join', 
+                        success: false, 
+                        message: '이미 게임이 진행 중입니다.' 
+                    }));
+                }
+
+                // 3. GameState 초기화 및 가져오기
+                if (!gameStates.has(roomId)) {
+                    gameStates.set(roomId, new GameState(roomId));
+                }
+                const gameState = gameStates.get(roomId);
+
+                // 4. 이미 이 방에 참여 중인지 확인 (재접속 케이스)
+                const existingPlayer = gameState.getPlayer(userId);
+                if (existingPlayer) {
+                    // 재접속: 소켓만 업데이트
+                    existingPlayer.socket = ws;
+                    ws.roomId = roomId;
+
+                    // 현재 방 상태 전송
+                    const allPlayersData = Array.from(gameState.players.entries()).map(([id, state]) => ({
+                        userId: id,
+                        x: state.x,
+                        y: state.y,
+                        hp: state.hp,
+                    }));
+
+                    ws.send(JSON.stringify({ 
+                        event: 'joined', 
+                        success: true,
+                        currentPlayers: allPlayersData,
+                        reconnected: true
+                    }));
+                    return;
+                }
+                
+                // 5. 방 인원 제한 확인 (재접속이 아닌 경우)
+                if (gameState.players.size >= 2) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'join', 
+                        success: false, 
+                        message: '방이 가득 찼습니다.' 
+                    }));
+                }
+                
+                // 6. 이전 방 나가기 (선택적)
+                if (ws.roomId && ws.roomId !== roomId) {
+                    await handleLeave({ roomId: ws.roomId });
+                }
+
+                // 7. DB에 참가자 추가
+                await RoomParticipant.findOrCreate({
+                    where: { roomId, memberId: userId },
+                    defaults: { roomId, memberId: userId }
+                });
+
+                // 8. GameState에 플레이어 추가
+                const newPlayerState = gameState.addPlayer(userId, ws);
+                ws.roomId = roomId;
+
+                // 9. 자신에게 현재 방 상태 전송
+                const allPlayersData = Array.from(gameState.players.entries()).map(([id, state]) => ({
+                    userId: id,
+                    x: state.x,
+                    y: state.y,
+                    hp: state.hp,
+                }));
+
+                ws.send(JSON.stringify({ 
+                    event: 'joined', 
+                    success: true,
+                    currentPlayers: allPlayersData,
+                }));
+
+                // 10. 다른 플레이어들에게 새 플레이어 참가 알림
+                gameState.broadcastToRoom({
+                    event: 'playerJoined',
+                    userId: userId,
+                    x: newPlayerState.x,
+                    y: newPlayerState.y,
+                    hp: newPlayerState.hp,
+                    playerCount: gameState.players.size
+                }, userId);
+
+            } catch (error) {
+                console.error('Join error:', error);
+                ws.send(JSON.stringify({ 
+                    event: 'join', 
+                    success: false, 
+                    message: '방 참가 중 오류가 발생했습니다.' 
+                }));
+            }
         }
 
         // 방 나가기
         async function handleLeave(data) {
             const { roomId } = data;
+            const userId = ws.userId;
+            
+            if (!userId || !roomId) return;
             
             const gameState = gameStates.get(roomId);
-            if (!gameState || !gameState.getPlayer(ws.userId)) {
-                return ws.send(JSON.stringify({ event: 'leave', success: false, message: '방에 참여 중이 아닙니다.' }));
-            }
 
-            gameState.removePlayer(ws.userId);
-            ws.roomId = null;
+            try {
+                if (gameState) {
+                    // 게임 진행 중일 때 나가기 방지
+                    if (gameState.status === 'playing' && gameState.getPlayer(userId)) {
+                        return ws.send(JSON.stringify({ 
+                            event: 'leave', 
+                            success: false, 
+                            message: '게임 진행 중에는 나갈 수 없습니다.' 
+                        }));
+                    }
+                    // GameState에서 플레이어 제거
+                    gameState.removePlayer(userId);
+                }
 
-            if (gameState.players.size === 0) {
-                gameStates.delete(roomId);
-            } else {
-                gameState.broadcastToAll({
-                    event: 'playerLeft',
-                    userId: ws.userId,
-                    playerCount: gameState.players.size
+                // DB에서 참가자 제거
+                await RoomParticipant.destroy({
+                    where: { roomId, memberId: userId }
                 });
-            }
 
-            ws.send(JSON.stringify({ event: 'leave', success: true }));
+                // 소켓 상태 초기화
+                ws.roomId = null;
+
+                // 방 정리 및 알림
+                if (gameState) {
+                    if (gameState.players.size === 0) {
+                        gameStates.delete(roomId);
+                        
+                        // DB에서도 방 삭제 (선택사항)
+                        const remainingParticipants = await RoomParticipant.count({ where: { roomId } });
+                        if (remainingParticipants === 0) {
+                            await Room.destroy({ where: { id: roomId } });
+                        }
+                    } else {
+                        // 다른 플레이어들에게 알림
+                        gameState.broadcastToAll({
+                            event: 'playerLeft',
+                            userId: userId,
+                            playerCount: gameState.players.size
+                        });
+                    }
+                }
+
+                ws.send(JSON.stringify({ event: 'leave', success: true }));
+
+            } catch (error) {
+                console.error('Leave error:', error);
+                ws.send(JSON.stringify({ 
+                    event: 'leave', 
+                    success: false, 
+                    message: '방 나가기 중 오류가 발생했습니다.' 
+                }));
+            }
         }
 
         // 게임 시작
         async function handleStart(data) {
             const { roomId } = data;
+            const userId = ws.userId;
 
-            const room = await Room.findByPk(roomId);
-            if (!room) {
-                return ws.send(JSON.stringify({ event: 'start', success: false, message: '방을 찾을 수 없습니다.' }));
-            }
+            try {
+                // 1. DB 방 정보 확인
+                const room = await Room.findByPk(roomId);
+                if (!room) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '방을 찾을 수 없습니다.' 
+                    }));
+                }
 
-            if (room.hostId !== ws.userId) {
-                return ws.send(JSON.stringify({ event: 'start', success: false, message: '방장만 게임을 시작할 수 있습니다.' }));
-            }
+                // 2. 방장 권한 확인
+                if (room.hostId !== userId) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '방장만 게임을 시작할 수 있습니다.' 
+                    }));
+                }
 
-            const gameState = gameStates.get(roomId);
-            if (!gameState || gameState.status !== 'waiting') {
-                return ws.send(JSON.stringify({ event: 'start', success: false, message: '이미 게임이 시작되었거나 종료되었습니다.' }));
-            }
-            if (gameState.players.size < 2) {
-                return ws.send(JSON.stringify({ event: 'start', success: false, message: '플레이어가 2명 필요합니다.' }));
-            }
+                // 3. GameState 확인
+                const gameState = gameStates.get(roomId);
+                if (!gameState) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '게임 상태를 찾을 수 없습니다.' 
+                    }));
+                }
 
-            // DB 및 상태 업데이트
-            await room.update({ status: 'playing' });
-            gameState.status = 'playing';
+                // 4. 이미 시작된 게임인지 확인
+                if (gameState.status !== 'waiting') {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '이미 게임이 시작되었거나 종료되었습니다.' 
+                    }));
+                }
 
-            // 모든 플레이어에게 초기 상태와 함께 게임 시작 알림
-            gameState.broadcastToAll({
-                event: 'gameStarted',
-                players: Array.from(gameState.players.entries()).map(([id, state]) => ({
+                // 5. 플레이어 수 확인
+                if (gameState.players.size < 2) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '플레이어가 2명 필요합니다.' 
+                    }));
+                }
+
+                // 6. 모든 플레이어의 소켓이 연결되어 있는지 확인
+                let allConnected = true;
+                gameState.players.forEach((player) => {
+                    if (player.socket.readyState !== WebSocket.OPEN) {
+                        allConnected = false;
+                    }
+                });
+
+                if (!allConnected) {
+                    return ws.send(JSON.stringify({ 
+                        event: 'start', 
+                        success: false, 
+                        message: '모든 플레이어가 연결되어 있지 않습니다.' 
+                    }));
+                }
+
+                // 7. DB 및 GameState 업데이트
+                await room.update({ status: 'playing' });
+                gameState.status = 'playing';
+
+                // 8. 모든 플레이어 상태 초기화
+                const now = Date.now();
+                gameState.players.forEach((player) => {
+                    player.lastUpdateTime = now;
+                    player.isDead = false;
+                    player.isGhost = false;
+                    player.ghostEndTime = 0;
+                    player.slowEndTime = 0;
+                    player.slowPercent = 0;
+                    player.cooldowns = {
+                        attack: 0,
+                        flash: 0,
+                        ghost: 0,
+                        rune: 0
+                    };
+                });
+
+                // 9. 게임 시작 알림
+                const playersData = Array.from(gameState.players.entries()).map(([id, state]) => ({
                     userId: id,
                     x: state.x,
                     y: state.y,
                     hp: state.hp
-                }))
-            });
+                }));
 
-            ws.send(JSON.stringify({ event: 'start', success: true }));
+                gameState.broadcastToAll({
+                    event: 'gameStarted',
+                    players: playersData
+                });
+
+                ws.send(JSON.stringify({ event: 'start', success: true }));
+
+            } catch (error) {
+                console.error('Start error:', error);
+                ws.send(JSON.stringify({ 
+                    event: 'start', 
+                    success: false, 
+                    message: '게임 시작 중 오류가 발생했습니다.' 
+                }));
+            }
         }
 
         // 캐릭터 이동 
@@ -661,52 +856,19 @@ function initWebSocket(server) {
 
             player.isGhost = true;
             player.ghostEndTime = now + GAME_CONSTANTS.GHOST_DURATION;
-            player.cooldowns.ghost = now + GAME_CONSTANTS.GHOST_COOLDOWN; 
+            player.cooldowns.ghost = now + GAME_CONSTANTS.GHOST_COOLDOWN;
             
             const newSpeed = getCurrentMoveSpeed(player);
             
             gameState.broadcastToAll({
                 event: 'ghostActivated',
                 userId: ws.userId,
-                speed: newSpeed
             });
             
             sendCooldowns(ws, player.cooldowns);
-            ws.send(JSON.stringify({
-                event: 'ghost', 
-                success: true, 
-                time: Math.ceil(GAME_CONSTANTS.GHOST_DURATION / 1000), 
-                speed: newSpeed 
-            }));
+            ws.send(JSON.stringify({ event: 'ghost', success: true, newSpeed: newSpeed }));
         }
+    }); // wss.on('connection') 끝
+} // initWebSocket 끝
 
-        // 연결 끊김 처리 
-        function handleDisconnect(userId, roomId) {
-            const gameState = gameStates.get(roomId);
-            if (!gameState) return;
-
-            gameState.removePlayer(userId);
-
-            if (gameState.players.size === 0) {
-                gameStates.delete(roomId);
-            } else {
-                gameState.broadcastToAll({
-                    event: 'playerLeft', 
-                    userId: userId,
-                    playerCount: gameState.players.size
-                });
-            }
-        }
-    });
-
-    return { wss, gameStates };
-    
-    return wss; // wss 객체 반환
-}
-
-<<<<<<< HEAD
-module.exports = initWebSocket; // initWebSocket 함수만 내보냅니다.
-=======
-
-module.exports = { initWebSocket, gameStates, playerSockets };
->>>>>>> e5cfb6b615682ecc253f1897485628e2dbeb2b5f
+module.exports = initWebSocket;

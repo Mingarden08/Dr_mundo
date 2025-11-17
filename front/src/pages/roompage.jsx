@@ -19,7 +19,6 @@ function RoomPage() {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
 
-        // 로그인 직후 바로 토큰 사용
         const token = parsedUser.data?.token || parsedUser.token;
         if (!token) return console.error("토큰 정보 없음");
         fetchRooms(token);
@@ -55,14 +54,19 @@ function RoomPage() {
                 },
                 body: JSON.stringify({ roomName }),
             });
+
+            // 서버 에러 메시지 안전 처리
             if (!response.ok) {
-                const err = await response.json();
+                const err = await response.json().catch(() => ({ message: "서버 에러" }));
                 return alert(err.message || "방 생성 실패");
             }
+
             const data = await response.json();
+            setShowModal(false);
+            setRoomName("");
             navigate(`/waiting/${data.data.roomId}`);
         } catch (error) {
-            console.error(error);
+            console.error("방 생성 중 오류:", error);
             alert("방 생성 중 오류가 발생했습니다.");
         }
     };
@@ -72,22 +76,23 @@ function RoomPage() {
         const token = user.data?.token || user.token;
 
         try {
-            // 1️⃣ 방 정보 확인
+            // 방 정보 확인
             const roomRes = await fetch(`${BASE_URL}/room/${roomId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (!roomRes.ok) throw new Error("방 정보 조회 실패");
             const roomData = await roomRes.json();
+
             if (!roomData.data) return alert("방 정보를 불러올 수 없습니다.");
             if (roomData.data.playerCnt >= 2) return alert("이미 가득 찬 방입니다.");
 
-            // 2️⃣ join 요청
+            // join 요청
             const joinRes = await fetch(`${BASE_URL}/room/join/${roomId}`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (!joinRes.ok) {
-                const err = await joinRes.json();
+                const err = await joinRes.json().catch(() => ({ message: "서버 에러" }));
                 return alert(err.message || "방 입장 실패");
             }
 

@@ -16,12 +16,12 @@ function WaitingRoom() {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
 
-        // user 세팅 후 fetch
-        if (parsedUser?.data?.token) fetchRoomInfo(parsedUser.data.token);
-    }, [roomId]);
+        fetchRoomInfo(parsedUser);
+    }, [roomId, navigate]);
 
-    const fetchRoomInfo = async (token) => {
+    const fetchRoomInfo = async (parsedUser) => {
         try {
+            const token = parsedUser.data?.token || parsedUser.token;
             const res = await fetch(`${BASE_URL}/room/${roomId}`, {
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -36,12 +36,11 @@ function WaitingRoom() {
     };
 
     const leaveRoom = async () => {
-        if (!user?.data?.token) return alert("로그인 정보가 없습니다.");
-
         try {
+            const token = user.data?.token || user.token;
             const res = await fetch(`${BASE_URL}/room/leave/${roomId}`, {
                 method: "DELETE",
-                headers: { "Authorization": `Bearer ${user.data.token}` }
+                headers: { "Authorization": `Bearer ${token}` }
             });
             if (!res.ok) throw new Error("방 나가기 실패");
             navigate("/roompage");

@@ -1,17 +1,17 @@
-// D:\Dr_mundo\back\src\utils\websocket.js
-
 const WebSocket = require('ws');
-const { verifyToken } = require('./jwt'); // './jwt' 파일에 verifyToken 함수 구현 필요
-const { Room, RoomParticipant, Member } = require('../models'); // DB 모델 (models 폴더에 정의 필요)
+const { verifyToken } = require('./jwt'); // HEAD: JWT 인증 모듈
+const { Room, RoomParticipant, Member } = require('../models'); // HEAD: DB 모델
 
-// 맵 및 플레이어 크기 정의
+// 맵 및 플레이어 크기 정의 (HEAD와 d25b3c6의 상수 통합)
 const GAME_CONSTANTS = {
+    // HEAD 상수
     MAP_WIDTH: 800,
     MAP_HEIGHT: 600,
     PLAYER_RADIUS: 25, 
     PLAYER_MAX_HP: 1000,
     
-    BASE_HP: 1000, 
+    // d25b3c6 상수
+    BASE_HP: 1000, // PLAYER_MAX_HP와 통일
     BASE_HP_REGEN: 2.0, // 초당
     BASE_MOVE_SPEED: 355,
     GHOST_SPEED_BONUS: 0.24, // 24%
@@ -34,19 +34,20 @@ const GAME_CONSTANTS = {
     }
 };
 
-// 게임 상태 관리
+// 게임 상태 관리 (HEAD 버전 유지)
 const gameStates = new Map(); // roomId -> GameState 인스턴스
-const playerSockets = new Map(); // userId -> WebSocket 소켓 (선택적)
+const playerSockets = new Map(); // userId -> WebSocket 소켓
 
 class GameState {
     constructor(roomId) {
         this.roomId = roomId;
         this.players = new Map(); // userId -> playerState
-        this.projectiles = []; 
+        this.projectiles = []; // d25b3c6의 projectiles을 GameState로 이동
         this.status = 'waiting'; // waiting, playing, finished
     }
 
     addPlayer(userId, socket) {
+        // 현재 방에 몇 명의 플레이어가 있는지 확인하여 위치 분리
         const isSecondPlayer = this.players.size > 0;
         
         const radius = GAME_CONSTANTS.PLAYER_RADIUS;
@@ -56,27 +57,28 @@ class GameState {
             
         const initialY = GAME_CONSTANTS.MAP_HEIGHT / 2; 
 
+        // d25b3c6의 상세 상태 추가
         const playerState = {
             socket,
             x: initialX, 
             y: initialY,
-            targetX: initialX, 
-            targetY: initialY, 
+            targetX: initialX, // d25b3c6
+            targetY: initialY, // d25b3c6
             hp: GAME_CONSTANTS.PLAYER_MAX_HP, 
             maxHp: GAME_CONSTANTS.PLAYER_MAX_HP,
-            moveSpeed: GAME_CONSTANTS.BASE_MOVE_SPEED, 
-            isGhost: false, 
-            ghostEndTime: 0, 
-            slowEndTime: 0, 
-            slowPercent: 0, 
-            isDead: false, 
+            moveSpeed: GAME_CONSTANTS.BASE_MOVE_SPEED, // d25b3c6
+            isGhost: false, // d25b3c6
+            ghostEndTime: 0, // d25b3c6
+            slowEndTime: 0, // d25b3c6
+            slowPercent: 0, // d25b3c6
+            isDead: false, // d25b3c6
             cooldowns: {
                 attack: 0,
                 flash: 0,
                 ghost: 0,
                 rune: 0
             },
-            lastUpdateTime: Date.now()
+            lastUpdateTime: Date.now() // d25b3c6
         };
 
         this.players.set(userId, playerState);
@@ -110,8 +112,9 @@ class GameState {
     }
 }
 
-// 헬퍼 함수들 ------------------------------------------------------------------
+// d25b3c6 버전에서 가져온 헬퍼 함수들 (GameState에 맞게 수정)
 
+// 투사체 생성 (d25b3c6)
 function createProjectile(attackerId, fromX, fromY, toX, toY) {
     const angle = Math.atan2(toY - fromY, toX - fromX);
     return {
@@ -127,6 +130,7 @@ function createProjectile(attackerId, fromX, fromY, toX, toY) {
     };
 }
 
+// HP 자연 회복 및 상태 업데이트 (d25b3c6)
 function updatePlayerHP(player) {
     if (player.isDead) return;
     
@@ -148,6 +152,7 @@ function updatePlayerHP(player) {
     }
 }
 
+// 현재 이동속도 계산 (d25b3c6)
 function getCurrentMoveSpeed(player) {
     let speed = GAME_CONSTANTS.BASE_MOVE_SPEED;
     
@@ -162,32 +167,23 @@ function getCurrentMoveSpeed(player) {
     return speed;
 }
 
+// 거리 계산 (d25b3c6)
 function distance(x1, y1, x2, y2) {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
 
+// 충돌 체크 (d25b3c6)
 function checkCollision(projX, projY, playerX, playerY) {
     return distance(projX, projY, playerX, playerY) < GAME_CONSTANTS.Q_SKILL.PROJECTILE_RADIUS;
 }
 
-function sendCooldowns(ws, cooldowns) {
-    const now = Date.now();
-    ws.send(JSON.stringify({
-        event: 'coolTime',
-        rune: Math.max(0, Math.ceil((cooldowns.rune - now) / 1000)),
-        attack: Math.max(0, Math.ceil((cooldowns.attack - now) / 1000)),
-        ghost: Math.max(0, Math.ceil((cooldowns.ghost - now) / 1000)),
-        flash: Math.max(0, Math.ceil((cooldowns.flash - now) / 1000))
-    }));
-}
 
-
-// 웹소켓 서버 초기화 함수 -------------------------------------------------------
+// 웹소켓 서버 초기화
 
 function initWebSocket(server) {
     const wss = new WebSocket.Server({ server });
     
-    // 플레이어 위치 업데이트 (내부 함수)
+    // 플레이어 위치 업데이트 (d25b3c6) - GameState에 맞게 수정
     function updatePlayerPosition(player, deltaTime) {
         if (player.isDead) return false;
         
@@ -219,7 +215,7 @@ function initWebSocket(server) {
         return true;
     }
     
-    // 투사체 업데이트 및 충돌 체크 (내부 함수)
+    // 투사체 업데이트 및 충돌 체크 (d25b3c6) - GameState에 맞게 수정
     function updateProjectiles(gameState) {
         if (gameState.status !== 'playing' || !gameState.projectiles) return;
 
@@ -295,9 +291,9 @@ function initWebSocket(server) {
         }
     }
 
-    // 주기적 쿨타임 브로드캐스트 및 위치 업데이트
+    // 주기적 쿨타임 브로드캐스트 및 위치 업데이트 (d25b3c6) - GameState에 맞게 수정
     setInterval(() => {
-        gameStates.forEach((gameState) => {
+        gameStates.forEach((gameState, roomId) => {
             if (gameState.status !== 'playing') return;
             
             const now = Date.now();
@@ -318,7 +314,12 @@ function initWebSocket(server) {
                     }
                     
                     // 쿨타임 정보 전송
-                    sendCooldowns(player.socket, player.cooldowns);
+                    player.socket.send(JSON.stringify({
+                        event: 'coolTime',
+                        attack: Math.max(0, Math.ceil((player.cooldowns.attack - now) / 1000)),
+                        ghost: Math.max(0, Math.ceil((player.cooldowns.ghost - now) / 1000)),
+                        flash: Math.max(0, Math.ceil((player.cooldowns.flash - now) / 1000))
+                    }));
                 }
             });
             
@@ -334,14 +335,16 @@ function initWebSocket(server) {
             updateProjectiles(gameState);
         });
     }, 50); // 20fps로 업데이트
-    // 웹소켓 연결 핸들러 -------------------------------------------------------
 
+    // wss.on('connection', 핸들러
     wss.on('connection', (ws, req) => {
-        // ws.userId와 ws.roomId는 연결 시점에 null로 시작
+        let userId = null;
+        let currentRoomId = null; 
+
         ws.userId = null; 
         ws.roomId = null;
 
-        ws.on('message', async (msg) => { 
+        ws.on('message', async (msg) => { // async 추가
             try {
                 const data = JSON.parse(msg);
 
@@ -384,35 +387,12 @@ function initWebSocket(server) {
         });
 
         ws.on('close', async () => {
-            // 연결 끊김 처리
+            // 연결 끊김 처리 (비정상 종료 시)
             if (ws.userId && ws.roomId) {
-                await handleDisconnect(ws.userId, ws.roomId); // handleDisconnect는 정의되지 않았으므로 아래 handleLeave 로직을 대체함
+                await handleDisconnect(ws.userId, ws.roomId);
             }
             if (ws.userId) {
                 playerSockets.delete(ws.userId);
-            }
-            
-            // 연결 끊김 시 방 나가기 로직을 handleDisconnect 대신 직접 처리
-            if (ws.roomId && ws.userId) {
-                const roomId = ws.roomId;
-                const gameState = gameStates.get(roomId);
-                
-                if (gameState) {
-                    gameState.removePlayer(ws.userId);
-
-                    if (gameState.players.size === 0) {
-                        gameStates.delete(roomId);
-                        // DB 방 삭제 로직은 handleLeave에 맡김 (선택 사항)
-                    } else {
-                        // 다른 플레이어들에게 알림
-                        gameState.broadcastToAll({
-                            event: 'playerLeft',
-                            userId: ws.userId,
-                            playerCount: gameState.players.size
-                        });
-                    }
-                }
-                ws.roomId = null;
             }
         });
 
@@ -430,23 +410,26 @@ function initWebSocket(server) {
                 return;
             }
 
-            ws.userId = decoded.id; // ws.userId에 할당
-            playerSockets.set(ws.userId, ws);
+            userId = decoded.id;
+            ws.userId = userId; 
+            playerSockets.set(userId, ws);
 
             ws.send(JSON.stringify({ 
                 event: 'auth', 
                 success: true, 
-                playerId: ws.userId 
+                playerId: userId 
             })); 
         }
 
-        // 방 참가 
+        // 방 참가 (개선 버전)
         async function handleJoin(data) {
             const { roomId } = data;
-            const userId = ws.userId;
-            
             if (!userId) {
-                return ws.send(JSON.stringify({ event: 'join', success: false, message: '인증되지 않은 사용자입니다.' }));
+                return ws.send(JSON.stringify({ 
+                    event: 'join', 
+                    success: false, 
+                    message: '인증되지 않은 사용자입니다.' 
+                }));
             }
 
             try {
@@ -469,18 +452,24 @@ function initWebSocket(server) {
                     }));
                 }
 
-                // 3. GameState 초기화 및 가져오기
+                // 3. 기존에 다른 방에 참여 중이라면 먼저 나가기
+                if (ws.roomId && ws.roomId !== roomId) {
+                    await handleLeave({ roomId: ws.roomId });
+                }
+
+                // 4. GameState 초기화
                 if (!gameStates.has(roomId)) {
                     gameStates.set(roomId, new GameState(roomId));
                 }
                 const gameState = gameStates.get(roomId);
 
-                // 4. 이미 이 방에 참여 중인지 확인 (재접속 케이스)
+                // 5. 이미 이 방에 참여 중인지 확인 (재접속 케이스)
                 const existingPlayer = gameState.getPlayer(userId);
                 if (existingPlayer) {
                     // 재접속: 소켓만 업데이트
                     existingPlayer.socket = ws;
                     ws.roomId = roomId;
+                    currentRoomId = roomId;
 
                     // 현재 방 상태 전송
                     const allPlayersData = Array.from(gameState.players.entries()).map(([id, state]) => ({
@@ -496,10 +485,11 @@ function initWebSocket(server) {
                         currentPlayers: allPlayersData,
                         reconnected: true
                     }));
+
                     return;
                 }
-                
-                // 5. 방 인원 제한 확인 (재접속이 아닌 경우)
+
+                // 6. 방 인원 제한 확인
                 if (gameState.players.size >= 2) {
                     return ws.send(JSON.stringify({ 
                         event: 'join', 
@@ -507,20 +497,16 @@ function initWebSocket(server) {
                         message: '방이 가득 찼습니다.' 
                     }));
                 }
-                
-                // 6. 이전 방 나가기 (선택적)
-                if (ws.roomId && ws.roomId !== roomId) {
-                    await handleLeave({ roomId: ws.roomId });
-                }
 
                 // 7. DB에 참가자 추가
-                await RoomParticipant.findOrCreate({
+                const [participant, created] = await RoomParticipant.findOrCreate({
                     where: { roomId, memberId: userId },
                     defaults: { roomId, memberId: userId }
                 });
 
                 // 8. GameState에 플레이어 추가
                 const newPlayerState = gameState.addPlayer(userId, ws);
+                currentRoomId = roomId;
                 ws.roomId = roomId;
 
                 // 9. 자신에게 현재 방 상태 전송
@@ -557,38 +543,39 @@ function initWebSocket(server) {
             }
         }
 
-        // 방 나가기
+        // 방 나가기 (개선 버전)
         async function handleLeave(data) {
             const { roomId } = data;
-            const userId = ws.userId;
             
-            if (!userId || !roomId) return;
-            
-            const gameState = gameStates.get(roomId);
-
             try {
+                const gameState = gameStates.get(roomId);
+                
+                // 1. GameState에서 플레이어 제거
                 if (gameState) {
-                    // 게임 진행 중일 때 나가기 방지
-                    if (gameState.status === 'playing' && gameState.getPlayer(userId)) {
+                    const player = gameState.getPlayer(userId);
+                    
+                    // 게임 진행 중이라면 나가기 불가
+                    if (gameState.status === 'playing' && player) {
                         return ws.send(JSON.stringify({ 
                             event: 'leave', 
                             success: false, 
                             message: '게임 진행 중에는 나갈 수 없습니다.' 
                         }));
                     }
-                    // GameState에서 플레이어 제거
+
                     gameState.removePlayer(userId);
                 }
 
-                // DB에서 참가자 제거
+                // 2. DB에서 참가자 제거
                 await RoomParticipant.destroy({
                     where: { roomId, memberId: userId }
                 });
 
-                // 소켓 상태 초기화
+                // 3. 소켓 상태 초기화
+                currentRoomId = null;
                 ws.roomId = null;
 
-                // 방 정리 및 알림
+                // 4. 방이 비었으면 GameState 삭제
                 if (gameState) {
                     if (gameState.players.size === 0) {
                         gameStates.delete(roomId);
@@ -620,10 +607,9 @@ function initWebSocket(server) {
             }
         }
 
-        // 게임 시작
+        // 게임 시작 (개선 버전)
         async function handleStart(data) {
             const { roomId } = data;
-            const userId = ws.userId;
 
             try {
                 // 1. DB 방 정보 확인
@@ -735,15 +721,17 @@ function initWebSocket(server) {
             }
         }
 
-        // 캐릭터 이동 
+        // 캐릭터 이동 (d25b3c6의 목표 지점 설정 로직 반영)
         async function handleMove(data) {
             const { x, y } = data;
 
-            const gameState = gameStates.get(ws.roomId);
+            const gameState = gameStates.get(currentRoomId);
             if (!gameState || gameState.status !== 'playing') return;
 
-            const player = gameState.getPlayer(ws.userId);
+            const player = gameState.getPlayer(userId);
             if (!player || player.isDead) return;
+
+            // TODO: 맵 경계 제한 로직 추가 필요
 
             // d25b3c6 로직: 목표 지점만 설정 (실제 이동은 setInterval 루프에서 처리)
             player.targetX = x;
@@ -752,10 +740,10 @@ function initWebSocket(server) {
             // 다른 플레이어들에게 이동 목표 알림
             gameState.broadcastToRoom({
                 event: 'playerMoveTarget',
-                userId: ws.userId,
+                userId: userId,
                 targetX: x, 
                 targetY: y 
-            }, ws.userId);
+            }, userId);
 
             ws.send(JSON.stringify({ event: 'move', success: true }));
         }
@@ -765,22 +753,20 @@ function initWebSocket(server) {
             const { x, y } = data; // 공격 목표 좌표
             const now = Date.now();
 
-            const gameState = gameStates.get(ws.roomId);
+            const gameState = gameStates.get(currentRoomId);
             if (!gameState || gameState.status !== 'playing') return;
 
-            const attacker = gameState.getPlayer(ws.userId);
+            const attacker = gameState.getPlayer(userId);
             if (!attacker || attacker.isDead || attacker.cooldowns.attack > now) {
                 return ws.send(JSON.stringify({ event: 'attack', success: false, message: '쿨타임 중이거나 사망했습니다.' }));
             }
 
             // HP 소모
             attacker.hp -= GAME_CONSTANTS.Q_SKILL.HP_COST;
-            
-            // HP가 0 이하로 떨어지면 자살 처리
             if (attacker.hp <= 0) {
                  attacker.hp = 0;
                  attacker.isDead = true;
-                 gameState.broadcastToAll({ event: 'finish', winnerId: 'suicide', roomId: ws.roomId });
+                 gameState.broadcastToAll({ event: 'finish', winnerId: 'suicide', roomId: currentRoomId });
                  return;
             }
             
@@ -788,13 +774,13 @@ function initWebSocket(server) {
             attacker.cooldowns.attack = now + GAME_CONSTANTS.Q_SKILL.COOLDOWN;
             
             // 투사체 생성 (서버에서 관리)
-            const projectile = createProjectile(ws.userId, attacker.x, attacker.y, x, y);
+            const projectile = createProjectile(userId, attacker.x, attacker.y, x, y);
             gameState.projectiles.push(projectile);
             
             // 스킬 시전 알림
             gameState.broadcastToAll({
                 event: 'attackCast',
-                userId: ws.userId,
+                userId: userId,
                 x: x, 
                 y: y,
                 fromX: attacker.x,
@@ -805,14 +791,14 @@ function initWebSocket(server) {
             ws.send(JSON.stringify({ event: 'attack', success: true, x: x, y: y }));
         }
 
-        // 플래시 스킬
+        // 플래시 스킬 (d25b3c6의 상세 로직 반영)
         async function handleFlash(data) {
             const { x, y } = data;
-            const gameState = gameStates.get(ws.roomId);
+            const gameState = gameStates.get(currentRoomId);
             const now = Date.now();
             
             if (!gameState || gameState.status !== 'playing') return;
-            const player = gameState.getPlayer(ws.userId);
+            const player = gameState.getPlayer(userId);
             
             if (!player || player.isDead || player.cooldowns.flash > now) {
                 return ws.send(JSON.stringify({ event: 'flash', success: false, message: '쿨타임 중입니다.' }));
@@ -830,7 +816,7 @@ function initWebSocket(server) {
                 
                 gameState.broadcastToAll({
                     event: 'playerFlashed',
-                    userId: ws.userId,
+                    userId: userId,
                     x: x,
                     y: y
                 });
@@ -842,13 +828,13 @@ function initWebSocket(server) {
             }
         }
 
-        // 유체화 스킬
+        // 유체화 스킬 (d25b3c6의 상세 로직 반영)
         async function handleGhost(data) {
-            const gameState = gameStates.get(ws.roomId);
+            const gameState = gameStates.get(currentRoomId);
             const now = Date.now();
             
             if (!gameState || gameState.status !== 'playing') return;
-            const player = gameState.getPlayer(ws.userId);
+            const player = gameState.getPlayer(userId);
             
             if (!player || player.isDead || player.cooldowns.ghost > now) {
                 return ws.send(JSON.stringify({ event: 'ghost', success: false, message: '쿨타임 중입니다.' }));
@@ -859,16 +845,101 @@ function initWebSocket(server) {
             player.cooldowns.ghost = now + GAME_CONSTANTS.GHOST_COOLDOWN;
             
             const newSpeed = getCurrentMoveSpeed(player);
+            const timeInSeconds = Math.ceil(GAME_CONSTANTS.GHOST_DURATION / 1000);
             
             gameState.broadcastToAll({
                 event: 'ghostActivated',
-                userId: ws.userId,
+                userId: userId,
+                speed: newSpeed
             });
             
             sendCooldowns(ws, player.cooldowns);
-            ws.send(JSON.stringify({ event: 'ghost', success: true, newSpeed: newSpeed }));
+            ws.send(JSON.stringify({
+                event: 'ghost', 
+                success: true, 
+                time: timeInSeconds, 
+                speed: newSpeed 
+            }));
         }
-    }); // wss.on('connection') 끝
-} // initWebSocket 끝
 
-module.exports = initWebSocket;
+        // 연결 끊김 처리 (개선 버전)
+        async function handleDisconnect(userId, roomId) {
+            try {
+                const gameState = gameStates.get(roomId);
+                if (!gameState) return;
+
+                const player = gameState.getPlayer(userId);
+                if (!player) return;
+
+                // 게임 진행 중이라면
+                if (gameState.status === 'playing') {
+                    // 플레이어를 사망 처리
+                    player.isDead = true;
+                    player.hp = 0;
+
+                    // 상대방 승리 처리
+                    const otherPlayers = Array.from(gameState.players.entries())
+                        .filter(([id]) => id !== userId);
+                    
+                    if (otherPlayers.length > 0) {
+                        const [winnerId] = otherPlayers[0];
+                        gameState.broadcastToAll({
+                            event: 'finish',
+                            winnerId: winnerId,
+                            reason: 'disconnect',
+                            roomId: roomId
+                        });
+                    }
+
+                    // DB 상태 업데이트
+                    await Room.update(
+                        { status: 'finished' },
+                        { where: { id: roomId } }
+                    );
+
+                    // GameState 정리
+                    gameState.status = 'finished';
+                }
+
+                // 플레이어 제거
+                gameState.removePlayer(userId);
+
+                // DB에서 참가자 제거
+                await RoomParticipant.destroy({
+                    where: { roomId, memberId: userId }
+                });
+
+                // 방이 비었으면 정리
+                if (gameState.players.size === 0) {
+                    gameStates.delete(roomId);
+                } else {
+                    gameState.broadcastToAll({
+                        event: 'playerLeft',
+                        userId: userId,
+                        reason: 'disconnect',
+                        playerCount: gameState.players.size
+                    });
+                }
+
+            } catch (error) {
+                console.error('Disconnect handling error:', error);
+            }
+        }
+
+        // 쿨타임 정보 전송
+        function sendCooldowns(ws, cooldowns) {
+            const now = Date.now();
+            ws.send(JSON.stringify({
+                event: 'coolTime',
+                rune: Math.max(0, Math.ceil((cooldowns.rune - now) / 1000)),
+                attack: Math.max(0, Math.ceil((cooldowns.attack - now) / 1000)),
+                ghost: Math.max(0, Math.ceil((cooldowns.ghost - now) / 1000)),
+                flash: Math.max(0, Math.ceil((cooldowns.flash - now) / 1000))
+            }));
+        }
+    });
+
+    return { wss, gameStates };
+}
+
+module.exports = { initWebSocket, gameStates, playerSockets };

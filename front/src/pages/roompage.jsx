@@ -14,11 +14,8 @@ function RoomPage() {
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
-        if (userData) {
-            setUser(JSON.parse(userData));
-        } else {
-            navigate("/Login");
-        }
+        if (userData) setUser(JSON.parse(userData));
+        else navigate("/Login");
 
         fetchRooms();
     }, [navigate]);
@@ -28,17 +25,18 @@ function RoomPage() {
             const response = await fetch(`${BASE_URL}/room`, {
                 headers: { "Authorization": `Bearer ${user?.data?.token}` }
             });
-            if (response.ok) {
-                const data = await response.json();
-                setRooms(data.data?.rooms || []);
-            }
+            if (!response.ok) throw new Error("방 목록 가져오기 실패");
+            const data = await response.json();
+            setRooms(data.data?.rooms || []);
         } catch (error) {
-            console.error("방 목록 가져오기 실패:", error);
+            console.error(error);
+            alert("방 목록을 불러오는 중 오류가 발생했습니다.");
         }
     };
 
     const handleCreateRoom = async () => {
         if (!roomName.trim()) return alert("방 이름을 입력해주세요.");
+
         try {
             const response = await fetch(`${BASE_URL}/room/create`, {
                 method: "POST",
@@ -48,33 +46,66 @@ function RoomPage() {
                 },
                 body: JSON.stringify({ roomName }),
             });
-            if (response.ok) {
-                const data = await response.json();
-                navigate(`/waiting/${data.data.roomId}`);
-            } else {
+            if (!response.ok) {
                 const err = await response.json();
-                alert(err.message || "방 생성 실패");
+                return alert(err.message || "방 생성 실패");
             }
+            const data = await response.json();
+            navigate(`/waiting/${data.data.roomId}`);
         } catch (error) {
-            console.error("방 생성 오류:", error);
-            alert("방 생성 중 오류 발생");
+            console.error(error);
+            alert("방 생성 중 오류가 발생했습니다.");
         }
     };
 
     const handleJoinRoom = async (roomId) => {
         try {
-            const response = await fetch(`${BASE_URL}/room/join/${roomId}`, {
+            // 1️⃣ 기존 방 leave 후 잠시 대기
+            await leaveCurrentRoom();
+            await new Promise(res => setTimeout(res, 500));
+
+            // 2️⃣ 방 정보 확인
+            const roomRes = await fetch(`${BASE_URL}/room/${roomId}`, {
+                headers: { "Authorization": `Bearer ${user.data.token}` }
+            });
+            if (!roomRes.ok) throw new Error("방 정보 조회 실패");
+            const roomData = await roomRes.json();
+            if (!roomData.data) return alert("방 정보를 불러올 수 없습니다.");
+            if (roomData.data.playerCnt >= 2) return alert("이미 가득 찬 방입니다.");
+
+            // 3️⃣ join 요청
+            const joinRes = await fetch(`${BASE_URL}/room/join/${roomId}`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${user.data.token}` }
             });
-            if (response.ok) navigate(`/waiting/${roomId}`);
-            else {
-                const err = await response.json();
-                alert(err.message || "방 입장 실패");
+            if (!joinRes.ok) {
+                const err = await joinRes.json();
+                return alert(err.message || "방 입장 실패");
             }
+
+            navigate(`/waiting/${roomId}`);
         } catch (error) {
-            console.error("방 입장 오류:", error);
-            alert("방 입장 중 오류 발생");
+            console.error("방 참가 오류:", error);
+            alert("방 참가 중 오류가 발생했습니다.");
+        }
+    };
+
+    const leaveCurrentRoom = async () => {
+        try {
+            const res = await fetch(`${BASE_URL}/room`, {
+                headers: { "Authorization": `Bearer ${user?.data?.token}` }
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const currentRoom = data.data?.rooms?.[0];
+            if (!currentRoom) return;
+
+            await fetch(`${BASE_URL}/room/leave/${currentRoom.roomId}`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${user.data.token}` }
+            });
+        } catch (error) {
+            console.error("기존 방 나가기 오류:", error);
         }
     };
 

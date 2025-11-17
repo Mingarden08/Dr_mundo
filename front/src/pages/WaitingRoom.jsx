@@ -13,7 +13,6 @@ function WaitingRoom() {
         const userData = localStorage.getItem("user");
         if (!userData) return navigate("/Login");
         setUser(JSON.parse(userData));
-
         fetchRoomInfo();
     }, [roomId]);
 
@@ -26,8 +25,8 @@ function WaitingRoom() {
             const data = await res.json();
             setRoom(data.data);
         } catch (error) {
-            console.error("❌ 방 정보 조회 중 에러:", error);
-            alert("방 정보 조회 실패");
+            console.error("방 정보 조회 중 에러:", error);
+            alert("방 정보를 불러오는 중 오류 발생");
             navigate("/Room");
         }
     };
@@ -41,8 +40,8 @@ function WaitingRoom() {
             if (!res.ok) throw new Error("방 나가기 실패");
             navigate("/Room");
         } catch (error) {
-            console.error("❌ 방 나가기 중 에러:", error);
-            alert("방 나가기 실패");
+            console.error("방 나가기 중 에러:", error);
+            alert("방 나가기 중 오류 발생");
         }
     };
 

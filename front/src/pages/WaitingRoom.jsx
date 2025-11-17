@@ -1,14 +1,15 @@
-// src/pages/WaitingRoom.jsx (디버깅 및 개선 버전)
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./WaitingRoom.css";
 import { useWebSocket } from '../WebSocketContext';
 
+// API Base URL을 상수로 정의하여 배포 주소를 사용합니다.
+const API_BASE_URL = "https://dr-mundo.onrender.com/dr-mundo/game/room";
+
 function WaitingRoom() {
     const { roomId } = useParams();
     const [roomInfo, setRoomInfo] = useState({ roomName: `방 #${roomId}` });
-    const [isHost, setIsHost] = useState(true); // TODO: 서버에서 받아와야 함
+    const [isHost, setIsHost] = useState(false); // Default to false
     const [currentUser, setCurrentUser] = useState(null);
 
     const navigate = useNavigate();
@@ -16,6 +17,54 @@ function WaitingRoom() {
     // Context에서 필요한 값과 함수 가져오기
     const { isConnected, gameState, sendMessage, connect, disconnect, error } = useWebSocket();
     const { playerCount, isGameStarted, currentPlayers } = gameState;
+
+    // HTTP API로 방 정보 가져오기 (폴링) - useCallback을 사용하여 경고 제거 및 의존성 관리
+    const fetchRoomInfo = useCallback(async (token) => {
+        // currentUser state가 아직 설정되지 않았다면 API 호출을 건너뜁니다.
+        // token이 없으면 호출하지 않습니다.
+        if (!currentUser || !token) {
+            console.log("🔍 방 정보 조회 스킵: 사용자 정보 또는 토큰 없음.");
+            return;
+        }
+
+        try {
+            console.log("🔍 방 정보 조회 시작 - roomId:", roomId);
+            
+            // Critical Fix: localhost URL을 배포 서버 URL로 변경
+            const response = await fetch(`${API_BASE_URL}/${roomId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log("✅ 방 정보 조회 성공:", data);
+                
+                setRoomInfo({
+                    roomName: data.roomName || `방 #${roomId}`,
+                    ...data
+                });
+                
+                // 방장 여부 설정
+                if (data.hostId && currentUser.data?.id) {
+                    setIsHost(data.hostId === currentUser.data.id);
+                }
+                
+            } else {
+                console.error("❌ 방 정보 조회 실패 - 상태 코드:", response.status);
+                // 404 등 방이 사라진 경우 처리
+                if (response.status === 404) {
+                     alert("방을 찾을 수 없습니다. 방 목록으로 돌아갑니다.");
+                     navigate("/roompage");
+                }
+            }
+        } catch (error) {
+            console.error("❌ 방 정보 조회 중 에러:", error);
+        }
+    }, [roomId, currentUser, navigate]); // 필요한 외부 의존성 추가
 
     // 초기 연결 및 설정
     useEffect(() => {
@@ -29,26 +78,27 @@ function WaitingRoom() {
         }
 
         const parsedUser = JSON.parse(userData);
-        console.log("✅ 사용자 정보:", parsedUser);
+        const token = parsedUser.data.token;
+        console.log("✅ 사용자 정보 설정 완료");
         setCurrentUser(parsedUser);
         
-        // WebSocket 연결 시도
+        // WebSocket 연결 시도 (currentUser가 설정된 후)
         console.log("🔌 WebSocket 연결 시도 - roomId:", roomId);
-        connect(parsedUser.data.token, roomId);
+        connect(token, roomId);
 
-        // HTTP 폴링으로 방 정보 가져오기 (백업용)
+        // 최초 방 정보 가져오기 및 폴링 시작
+        fetchRoomInfo(token);
+
         const interval = setInterval(() => {
-            fetchRoomInfo(parsedUser.data.token);
+            // fetchRoomInfo는 token을 인수로 받으므로, 이 시점의 token을 전달
+            fetchRoomInfo(token); 
         }, 3000);
-
-        // 최초 방 정보 가져오기
-        fetchRoomInfo(parsedUser.data.token);
 
         return () => {
             console.log("🔄 WaitingRoom 컴포넌트 언마운트");
             clearInterval(interval);
         };
-    }, [roomId, navigate, connect]);
+    }, [roomId, navigate, connect, fetchRoomInfo]); // fetchRoomInfo를 종속성 배열에 추가 (useCallback 덕분에 안전)
 
     // WebSocket 연결 상태 모니터링
     useEffect(() => {
@@ -70,39 +120,6 @@ function WaitingRoom() {
         }
     }, [isGameStarted, navigate, roomId]);
 
-    // HTTP API로 방 정보 가져오기 (폴링)
-    const fetchRoomInfo = async (token) => {
-        try {
-            console.log("🔍 방 정보 조회 시작 - roomId:", roomId);
-            
-            const response = await fetch(`http://localhost:8080/api/rooms/${roomId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log("✅ 방 정보 조회 성공:", data);
-                
-                setRoomInfo({
-                    roomName: data.roomName || `방 #${roomId}`,
-                    ...data
-                });
-                
-                // 방장 여부 설정 (서버 응답에 isHost 필드가 있다면)
-                if (data.hostId && currentUser?.data?.id) {
-                    setIsHost(data.hostId === currentUser.data.id);
-                }
-            } else {
-                console.error("❌ 방 정보 조회 실패 - 상태 코드:", response.status);
-            }
-        } catch (error) {
-            console.error("❌ 방 정보 조회 중 에러:", error);
-        }
-    };
 
     // 게임 시작
     const handleStartGame = async () => {
@@ -162,7 +179,8 @@ function WaitingRoom() {
                 const parsedUser = JSON.parse(userData);
                 console.log("🔄 API 방 나가기 요청");
                 
-                await fetch(`http://localhost:8080/api/rooms/${roomId}/leave`, {
+                // Critical Fix: localhost URL을 배포 서버 URL로 변경
+                await fetch(`${API_BASE_URL}/leave/${roomId}`, { 
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${parsedUser.data.token}`,
@@ -179,7 +197,7 @@ function WaitingRoom() {
             navigate("/roompage");
         } catch (error) {
             console.error("❌ 방 나가기 중 에러:", error);
-            navigate("/roompage");
+            navigate("/roompage"); // 에러가 나더라도 사용자가 방 목록으로 돌아갈 수 있도록 함
         }
     };
 
@@ -201,10 +219,17 @@ function WaitingRoom() {
                     playerName = currentPlayers[i].nickName || currentPlayers[i].name || `플레이어 ${i + 1}`;
                     isHostSlot = currentPlayers[i].isHost || false;
                 } else {
-                    // 플레이어 정보가 없으면 기본값 사용
-                    if (i === 0 && currentUser) {
-                        playerName = currentUser.data?.nickName || "방장";
-                        isHostSlot = isHost;
+                    // 플레이어 정보가 없으면, 현재 로그인한 사용자의 정보를 사용
+                    if (currentUser) {
+                         // 현재 로그인한 사용자가 이 슬롯에 해당될 수 있습니다. (임시 표시)
+                         const isCurrentSlot = (i === 0 && isHost) || (i === 1 && !isHost && playerCount === 2);
+
+                         if (isCurrentSlot) {
+                            playerName = currentUser.data?.nickName || currentUser.data?.email || "나";
+                            isHostSlot = isHost;
+                         } else {
+                            playerName = `플레이어 ${i + 1} (정보 불일치)`;
+                         }
                     } else {
                         playerName = `플레이어 ${i + 1}`;
                     }

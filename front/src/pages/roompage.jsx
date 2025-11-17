@@ -14,16 +14,18 @@ function RoomPage() {
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
-        if (userData) setUser(JSON.parse(userData));
-        else navigate("/Login");
+        if (!userData) return navigate("/Login");
 
-        fetchRooms();
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+
+        fetchRooms(parsedUser.data.token);
     }, [navigate]);
 
-    const fetchRooms = async () => {
+    const fetchRooms = async (token) => {
         try {
             const response = await fetch(`${BASE_URL}/room`, {
-                headers: { "Authorization": `Bearer ${user?.data?.token}` }
+                headers: { "Authorization": `Bearer ${token}` }
             });
             if (!response.ok) throw new Error("방 목록 가져오기 실패");
             const data = await response.json();
@@ -36,6 +38,7 @@ function RoomPage() {
 
     const handleCreateRoom = async () => {
         if (!roomName.trim()) return alert("방 이름을 입력해주세요.");
+        if (!user?.data?.token) return alert("로그인 정보가 없습니다.");
 
         try {
             const response = await fetch(`${BASE_URL}/room/create`, {
@@ -59,24 +62,23 @@ function RoomPage() {
     };
 
     const handleJoinRoom = async (roomId) => {
+        if (!user?.data?.token) return alert("로그인 정보가 없습니다.");
         try {
-            // 1️⃣ 기존 방 leave 후 잠시 대기
-            await leaveCurrentRoom();
-            await new Promise(res => setTimeout(res, 500));
+            const token = user.data.token;
 
-            // 2️⃣ 방 정보 확인
+            // 1️⃣ 방 정보 확인
             const roomRes = await fetch(`${BASE_URL}/room/${roomId}`, {
-                headers: { "Authorization": `Bearer ${user.data.token}` }
+                headers: { "Authorization": `Bearer ${token}` }
             });
             if (!roomRes.ok) throw new Error("방 정보 조회 실패");
             const roomData = await roomRes.json();
             if (!roomData.data) return alert("방 정보를 불러올 수 없습니다.");
             if (roomData.data.playerCnt >= 2) return alert("이미 가득 찬 방입니다.");
 
-            // 3️⃣ join 요청
+            // 2️⃣ join 요청
             const joinRes = await fetch(`${BASE_URL}/room/join/${roomId}`, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${user.data.token}` }
+                headers: { "Authorization": `Bearer ${token}` }
             });
             if (!joinRes.ok) {
                 const err = await joinRes.json();
@@ -90,23 +92,9 @@ function RoomPage() {
         }
     };
 
-    const leaveCurrentRoom = async () => {
-        try {
-            const res = await fetch(`${BASE_URL}/room`, {
-                headers: { "Authorization": `Bearer ${user?.data?.token}` }
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            const currentRoom = data.data?.rooms?.[0];
-            if (!currentRoom) return;
-
-            await fetch(`${BASE_URL}/room/leave/${currentRoom.roomId}`, {
-                method: "DELETE",
-                headers: { "Authorization": `Bearer ${user.data.token}` }
-            });
-        } catch (error) {
-            console.error("기존 방 나가기 오류:", error);
-        }
+    const handleLogout = () => {
+        localStorage.removeItem("user");
+        navigate("/Login");
     };
 
     return (
@@ -114,9 +102,7 @@ function RoomPage() {
             <div className="content-wrapper">
                 <img src={logo} alt="logo" />
                 <div className="user-info">접속 중: {user?.data?.email}</div>
-                <button onClick={() => { localStorage.removeItem("user"); navigate("/Login"); }}>
-                    로그아웃
-                </button>
+                <button onClick={handleLogout}>로그아웃</button>
             </div>
 
             <div className="room-list">
@@ -139,7 +125,7 @@ function RoomPage() {
 
             <div className="room-event">
                 <button onClick={() => setShowModal(true)}>방 만들기</button>
-                <button onClick={fetchRooms}>새로고침</button>
+                <button onClick={() => fetchRooms(user?.data?.token)}>새로고침</button>
             </div>
 
             {showModal && (
